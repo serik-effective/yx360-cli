@@ -93,3 +93,20 @@
 **Source:** `swarm-report/mail-inbox-search-attachments-send-plan-2026-06-20.md`, `swarm-report/mail-inbox-search-attachments-send-implementation-2026-06-20.md`, `swarm-report/mail-send-implementation-2026-06-20.md`.
 **Closes:** OQ-007.
 **Raises:** OQ-010.
+
+---
+
+## D-009 — Calendar CalDAV and Telemost create are live-verified
+**Date:** 2026-06-20
+**Status:** accepted
+**Decision:** `yx360` now supports Calendar list/read/create/update/delete through documented CalDAV and Telemost conference creation through the official Telemost API. Calendar uses `calendar:all` and `Authorization: OAuth <token>`; `Bearer` auth was live-tested and rejected by CalDAV. Calendar/Telemost use a separate OAuth app and `calendar-telemost` credential profile because Yandex rejects mixing Mail, Calendar, and Telemost scopes in one OAuth application.
+**Why now:** Owner wanted the CLI to read events, create/update/delete meetings, and create Telemost links after proving the required Yandex OAuth scopes and live endpoints. The feature also satisfies the non-Mail Yandex 360 surface milestone in the product definition of done.
+**Alternatives rejected:**
+- One OAuth app for Mail + Calendar + Telemost: rejected because the Yandex OAuth UI/API returned `invalid_scope` / service-count errors for the mixed scope set.
+- `Authorization: Bearer <token>` for CalDAV: rejected because live CalDAV proof returned `401 Basic realm="CalDAV"`; `Authorization: OAuth <token>` returned `207 Multi-Status`.
+- Private Calendar web/mobile endpoints: rejected because documented CalDAV covered v1 CRUD.
+- Telemost conference deletion/cancellation in v1: rejected because no official delete/cancel endpoint was verified.
+- Recurring events, shared/delegated calendars, rooms/resources, and org directory lookup: rejected as out-of-scope for the narrow personal-account v1.
+**Source:** `swarm-report/calendar-telemost-plan-2026-06-20.md` and `swarm-report/calendar-telemost-implementation-2026-06-20.md`.
+**Closes:** none.
+**Raises:** OQ-011, OQ-012, OQ-013.

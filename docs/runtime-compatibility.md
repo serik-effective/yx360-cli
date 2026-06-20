@@ -1,15 +1,17 @@
 # Runtime Compatibility
 
-This matrix documents agent-doc compatibility for the current repository. It is not a claim that every runtime adapter has been smoke-tested.
+This matrix documents how a target agent runtime should consume `yx360` as a CLI-backed skill/tool. It is not a claim that every runtime adapter has been smoke-tested.
+
+The install-facing contract is `docs/agent-contract.md`. The root `AGENTS.md` belongs to this repository's own development workflow and must not be copied as the yx360 skill contract into unrelated projects.
 
 ## Matrix
 
-| Runtime | Canonical project docs | Runtime-specific surface | Current status | Verification status |
+| Runtime | yx360 skill contract | Runtime-specific surface | Current status | Verification status |
 |---------|------------------------|--------------------------|----------------|---------------------|
-| Codex | `AGENTS.md` | Optional `.codex` hooks or plugin/skill packaging when provisioned by an installer | Compatible with committed project instructions | yx360 runtime adapter smoke pending unless run in the target Codex environment |
-| Claude Code | `AGENTS.md` via `CLAUDE.md` shim | `.claude/settings.json`, `.claude/agents`, `.claude/skills`, hooks | Compatible with current repository layout | Existing Claude surface is present; per-target install smoke is still required |
-| OpenCode | `AGENTS.md` | `opencode.json`, `.opencode`, or `.agents/skills` where provisioned | Docs-compatible instruction surface | Adapter smoke pending |
-| OpenClaw | `AGENTS.md` where the project is mounted into an OpenClaw workspace/session | OpenClaw gateway config at `~/.openclaw/openclaw.json` | OpenClaw exists and is docs-verified as a self-hosted gateway | yx360 adapter smoke pending |
+| Codex | `docs/agent-contract.md` | Optional `.codex` hooks or plugin/skill packaging when provisioned by an installer | Contract-compatible | yx360 runtime adapter smoke pending unless run in the target Codex environment |
+| Claude Code | `docs/agent-contract.md` rendered into a `.claude/skills/.../SKILL.md` or referenced by a target-local `CLAUDE.md` | `.claude/settings.json`, `.claude/agents`, `.claude/skills`, hooks | Contract-compatible | Existing Claude surface is present; per-target install smoke is still required |
+| OpenCode | `docs/agent-contract.md` rendered into target-local OpenCode instructions/skill files | `opencode.json`, `.opencode`, or `.agents/skills` where provisioned | Docs-compatible instruction surface | Adapter smoke pending |
+| OpenClaw | `docs/agent-contract.md` visible to the OpenClaw agent session | OpenClaw gateway config at `~/.openclaw/openclaw.json` | OpenClaw exists and is docs-verified as a self-hosted gateway | yx360 adapter smoke pending |
 
 ## OpenClaw Boundary
 
@@ -27,7 +29,7 @@ This repository has not run an executable OpenClaw smoke test for yx360. Until t
 
 Installers for these runtimes may:
 
-- Copy or render `AGENTS.md`, `CLAUDE.md`, runtime settings, hooks, and skill folders.
+- Copy or render `docs/agent-contract.md`, runtime settings, hooks, and skill folders.
 - Validate syntax.
 - Report drift and conflicts.
 - Run doctor checks that prove a runtime can discover the expected files.
@@ -43,17 +45,17 @@ Installers must not:
 
 Codex:
 
-- Confirm the target project exposes `AGENTS.md`.
+- Confirm the target project or Codex skill can read the rendered `yx360` contract.
 - If `.codex` hooks are provisioned, confirm hook paths are target-local and executable.
 
 Claude Code:
 
-- Confirm `CLAUDE.md` points to `AGENTS.md` and contains only current project deltas.
+- Confirm the target `.claude/skills/.../SKILL.md` or `CLAUDE.md` references the `yx360` contract, not this repository's root `AGENTS.md`.
 - Confirm `.claude/settings.json` and hook scripts are syntactically valid.
 
 OpenCode:
 
-- Confirm the runtime discovers `AGENTS.md`.
+- Confirm the runtime discovers the rendered `yx360` contract.
 - Confirm any `opencode.json`, `.opencode`, or `.agents/skills` files are target-local and valid.
 
 OpenClaw:
@@ -64,4 +66,4 @@ OpenClaw:
 
 ## Current Recommendation
 
-Use `AGENTS.md` as the canonical cross-runtime instruction file. Keep `CLAUDE.md` as a short Claude Code shim. Treat OpenCode and OpenClaw as docs-compatible until adapter provisioning and executable smoke checks are implemented.
+Use `docs/agent-contract.md` as the canonical cross-runtime yx360 skill contract. Treat OpenCode and OpenClaw as docs-compatible until adapter provisioning and executable smoke checks are implemented.

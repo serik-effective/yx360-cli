@@ -1,6 +1,6 @@
 # Stack
 
-> Last updated: 2026-06-20 (research: `swarm-report/research-yandex-360-oauth-cli-login-2026-06-20.md`; login build: `swarm-report/yx360-oauth-login-scaffold-implementation-2026-06-20.md`; Mail build: `swarm-report/mail-inbox-search-attachments-send-implementation-2026-06-20.md` + `swarm-report/mail-send-implementation-2026-06-20.md`)
+> Last updated: 2026-06-20 (research: `swarm-report/research-yandex-360-oauth-cli-login-2026-06-20.md`; login build: `swarm-report/yx360-oauth-login-scaffold-implementation-2026-06-20.md`; Mail build: `swarm-report/mail-inbox-search-attachments-send-implementation-2026-06-20.md` + `swarm-report/mail-send-implementation-2026-06-20.md`; Calendar/Telemost build: `swarm-report/calendar-telemost-plan-2026-06-20.md` + `swarm-report/calendar-telemost-implementation-2026-06-20.md`)
 
 ## Language
 
@@ -20,6 +20,8 @@ Decided 2026-06-20: documented OAuth, **not** token interception / private-endpo
 | Token storage | OS keychain (`go-keyring`) only — never repo/logs (§12) | high | — |
 | Token lifetime | ~12-month access token (personal account); refresh returns new refresh_token | high (personal only) | …/tokens/refresh-client |
 | Mail | OAuth bearer via IMAP/SMTP (`mail:imap_full`, `mail:smtp`), no app password | high | live verification + Yandex OAuth app UI |
+| Calendar | CalDAV with `Authorization: OAuth <token>` and `calendar:all`; `Bearer` fails | high | live verification + Yandex OAuth app UI |
+| Telemost | `POST https://cloud-api.yandex.net/v1/telemost-api/conferences` with `telemost-api:conferences.create` | high | live verification + Yandex OAuth app UI |
 
 **Resolved dep versions** (`go mod tidy`, latest-compatible as of 2026-06-20; pinning revisitable):
 
@@ -35,11 +37,14 @@ Decided 2026-06-20: documented OAuth, **not** token interception / private-endpo
 **Resolved (was "verify empirically"):**
 - **Secretless REFRESH — NOT supported** for the registered confidential app (D-004): refresh without `client_secret` → `invalid_client`; with secret → works. §12 forbids shipping the secret, so `auth.Refresher` stays unimplemented and the strategy is **re-auth at expiry** (~yearly, ~12-month token). Possible unverified lever: a *native/public* app registration might allow secretless refresh.
 - **Mail scopes** — `mail:imap_full` for IMAP read/search/read/attachments (D-005) and `mail:smtp` for SMTP send (D-007), both from the Yandex OAuth app UI and live-verified.
-- **Yandex IPv6 route** — broken in the current deployment network; Yandex OAuth/account-info/IMAP/SMTP calls use IPv4 `tcp4` until IPv6 is proven reliable (D-006).
+- **Calendar scope/auth** — `calendar:all` works for CalDAV discovery/list/create/read/update/delete when sent as `Authorization: OAuth <token>`; `Authorization: Bearer <token>` returns `401`.
+- **Telemost create scope** — `telemost-api:conferences.create` works for official conference creation; `POST https://cloud-api.yandex.net/v1/telemost-api/conferences` returned `201 Created` and a `join_url`.
+- **Credential profiles** — Mail and Calendar/Telemost use separate OAuth apps and separate stored credential profiles so their scope sets do not overwrite each other.
+- **Yandex IPv6 route** — broken in the current deployment network; Yandex OAuth/account-info/IMAP/SMTP/CalDAV/Telemost calls use IPv4 `tcp4` until IPv6 is proven reliable (D-006 + Calendar/Telemost live smoke).
 
 **Still verify empirically before code depends on it:**
-- **Calendar/Contacts (CalDAV/CardDAV) for personal accounts** — contradictory sources on OAuth-bearer vs app-password. Integration-test against caldav/carddav.yandex.ru via XOAUTH2 before scoping into v1; else out-of-scope.
-- **Exact non-Mail scope strings** (`cloud_api:disk.*`, `telemost-api:*`, `directory:*`) — verify each against the live consent screen.
+- **Contacts/CardDAV for personal accounts** — still unverified; Calendar CalDAV is resolved separately through `calendar:all`.
+- **Exact remaining non-Mail scope strings** (`cloud_api:disk.*`, `directory:*`, Telemost read/update scopes) — verify each against the live consent screen before building commands that need them.
 - **Org / Directory scopes** — require Yandex 360 org + admin-enabled service app + written user consent. Personal accounts: Mail/Disk/Telemost self-scope only.
 
 ## Other components
@@ -47,7 +52,7 @@ Decided 2026-06-20: documented OAuth, **not** token interception / private-endpo
 | Concern | Candidate approach | Status |
 |---------|--------------------|--------|
 | CLI framework | `cobra` (actual: v1.10.2) | DECIDED (OQ-001 → D-003) |
-| API client | plain Go `net/http` + bearer token against documented APIs (Telemost API, Disk API, Directory); ref `essentialkaos/telemost` | TODO (PR-3+) |
+| API client | plain Go `net/http`; implemented for Calendar CalDAV and official Telemost create, still TODO for Disk/Directory | PARTIAL |
 | Distribution | Homebrew tap + GoReleaser | DECIDED, DEFERRED (post-login PR) |
 | Agent skill | `.claude/skills/`-style drop-in wrapping the CLI; reserve `--json` output convention at scaffold | DEFERRED |
 
@@ -101,6 +106,46 @@ Mail v1 is implemented through documented Yandex Mail protocols, not a private M
 
 **Known operational note:**
 - One combined IMAP search (`--from` + `--subject`) hit a transient Yandex `NO [UNAVAILABLE] UID SEARCH Backend error`; list/read verified delivery. If it repeats, run `/diagnose mail search`.
+
+## Built — Calendar CalDAV + Telemost
+
+Calendar/Telemost v1 is implemented through documented Calendar CalDAV plus the official Telemost conference API.
+
+**Credential model:**
+- Mail uses the `mail` credential profile and its own OAuth app/scopes.
+- Calendar/Telemost uses the `calendar-telemost` credential profile and a separate OAuth app with `calendar:all` and `telemost-api:conferences.create`.
+- Profile-aware keychain/file-store keys prevent Mail and Calendar/Telemost re-login from replacing each other's tokens.
+
+**Commands:**
+- `yx360 login --calendar --telemost`
+- `yx360 calendar list --from <date-or-time> --to <date-or-time> [--json]`
+- `yx360 calendar read <event-href> [--json]`
+- `yx360 calendar create --title ... --starts-at ... --ends-at ... [--attendee ...] [--telemost] [--yes] [--json]`
+- `yx360 calendar update <event-href> [fields...] [--yes] [--json]`
+- `yx360 calendar delete <event-href> [--yes] [--json]`
+- `yx360 telemost create [--yes] [--json]`
+
+**Protocol choices:**
+- Calendar: CalDAV at `https://caldav.yandex.ru` with `Authorization: OAuth <token>`, `calendar:all`, ETag-aware `PUT`/`DELETE`, and VEVENT parse/generate.
+- Telemost: `POST https://cloud-api.yandex.net/v1/telemost-api/conferences` with `Authorization: OAuth <token>` and `telemost-api:conferences.create`.
+- Network: Calendar and Telemost endpoints are live-verified through the same IPv4-only transport policy used for other Yandex endpoints.
+
+**Safety:**
+- Calendar create/update/delete and Telemost create default to preview/confirmation gates; `--yes` is explicit.
+- Calendar update uses ETags/`If-Match` to avoid overwriting remote changes.
+- Telemost links are attached to Calendar events, but conference deletion/cancellation is out of scope because no official delete endpoint is verified.
+
+**Live-verified 2026-06-20:**
+- OAuth login with the separate Calendar/Telemost app and credential profile.
+- Calendar list, create, read, update, delete, and post-delete `404` cleanup verification.
+- Calendar create with `--telemost`; read-back confirmed the Telemost `join_url` was attached.
+- Telemost conference creation returned `201 Created` and a `join_url`.
+
+**Known operational notes:**
+- Telemost links created during smoke may remain live until an official delete/cancel endpoint is verified.
+- `logout` still clears only the default profile; profile-aware logout is follow-up work.
+- Calendar update cannot intentionally clear a string field to empty yet.
+- Calendar commands currently use event hrefs as IDs; stable but not ergonomic.
 
 ## Detected at install
 
