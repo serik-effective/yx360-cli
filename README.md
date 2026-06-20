@@ -180,11 +180,31 @@ done
 - Telemost-ссылку можно создать, но отмена/удаление конференции через официальный API пока не подтверждена.
 - OpenClaw пока отмечен как docs-compatible, но отдельный executable smoke для адаптера `yx360` в OpenClaw не запускался.
 
+## Переменные окружения
+
+Для headless/CI/агентских запусков настройка идёт через env; флаги переопределяют там, где есть оба.
+
+| Переменная | Нужна для | Назначение |
+|---|---|---|
+| `YX360_CLIENT_ID` | `login`, почта | client id почтового/дефолтного OAuth-приложения |
+| `YX360_CALENDAR_CLIENT_ID` | `login --calendar`/`--telemost` | client id приложения Calendar+Telemost |
+| `YX360_FORMS_CLIENT_ID` | `login --forms`, `forms *` | client id приложения форм |
+| `YX360_FORMS_ORG_ID` | `forms *` | id организации; уходит в `X-Org-Id` (числовой) или `X-Cloud-Org-Id` (нечисловой) |
+| `YX360_CONFIG_HOME` | опц. | переопределить config-root (файловое хранилище токена, справочник комнат) |
+| `YX360_IMAP_HOST` / `YX360_SMTP_HOST` | опц. | хосты почты (по умолчанию `imap.yandex.ru` / `smtp.yandex.ru`) |
+| `YX360_CALDAV_URL` | опц. | база CalDAV (по умолчанию `https://caldav.yandex.ru`) |
+| `YX360_TELEMOST_API_URL` | опц. | база Telemost API |
+| `YX360_FORMS_API_URL` | опц. | база Forms API (по умолчанию `https://api.forms.yandex.net`) |
+
+`client_secret` нигде не используется — CLI это public-клиент OAuth (PKCE). Секреты, токены и внутренние URL не коммитим.
+
 ## Документы для агентов и skill-установщиков
 
 Основная документация для человека — этот README. Если агент устанавливает `yx360` внутрь своего проекта или рантайма как skill/tool, ему нужны не рабочие инструкции этого репозитория, а контракт CLI:
 
 - [docs/agent-contract.md](docs/agent-contract.md) — контракт CLI для агентов: JSON, redaction, ошибки, подтверждение отправки.
+- [docs/agent-quickstart.md](docs/agent-quickstart.md) — короткий путь от нуля до первого `--json` вызова.
+- [docs/agent-mode-roadmap.md](docs/agent-mode-roadmap.md) — предложенные agent-mode фичи (remote login, schema, dry-run, wrap-untrusted и т.д.).
 - [docs/runtime-compatibility.md](docs/runtime-compatibility.md) — как подключать контракт к Codex, Claude Code, OpenCode, OpenClaw.
 
 `AGENTS.md` в корне — это рабочее соглашение для разработки самого `yx360-cli` внутри этого репозитория. Не используйте его как install-doc для чужого проекта: он описывает Effective Harness-контекст этого checkout, а не контракт внешнего skill.
