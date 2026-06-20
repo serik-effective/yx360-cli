@@ -31,14 +31,31 @@ type Telemost struct {
 	CreateScope string
 }
 
+type Forms struct {
+	BaseURL    string
+	OrgID      string
+	ReadScope  string
+	WriteScope string
+}
+
 const defaultClientID = ""
 const MailReadScope = "mail:imap_full"
 const MailSendScope = "mail:smtp"
 const CalendarScope = "calendar:all"
 const TelemostCreateScope = "telemost-api:conferences.create"
+const FormsReadScope = "forms:read"
+const FormsWriteScope = "forms:write"
 
 func CalendarClientID() string {
 	return os.Getenv("YX360_CALENDAR_CLIENT_ID")
+}
+
+func FormsClientID() string {
+	return os.Getenv("YX360_FORMS_CLIENT_ID")
+}
+
+func FormsOrgID() string {
+	return os.Getenv("YX360_FORMS_ORG_ID")
 }
 
 func Default() OAuth {
@@ -90,4 +107,12 @@ func DefaultTelemost() Telemost {
 		baseURL = "https://cloud-api.yandex.net/v1/telemost-api"
 	}
 	return Telemost{BaseURL: baseURL, CreateScope: TelemostCreateScope}
+}
+
+func DefaultForms() Forms {
+	baseURL := os.Getenv("YX360_FORMS_API_URL")
+	if baseURL == "" {
+		baseURL = "https://api.forms.yandex.net"
+	}
+	return Forms{BaseURL: baseURL, OrgID: FormsOrgID(), ReadScope: FormsReadScope, WriteScope: FormsWriteScope}
 }

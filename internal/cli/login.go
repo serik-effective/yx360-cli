@@ -13,6 +13,7 @@ import (
 const (
 	mailProfile             = "mail"
 	calendarTelemostProfile = "calendar-telemost"
+	formsProfile            = "forms"
 )
 
 func newLoginCmd() *cobra.Command {
@@ -23,14 +24,25 @@ func newLoginCmd() *cobra.Command {
 		mailSendScope bool
 		calendarScope bool
 		telemostScope bool
+		formsScope    bool
 	)
 	cmd := &cobra.Command{
 		Use:   "login",
 		Short: "Sign in to Yandex 360 via OAuth",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			cfg := config.Default()
-			if (calendarScope || telemostScope) && (mailScope || mailSendScope) {
-				return errors.New("mail and calendar/telemost scopes use different Yandex OAuth apps; run separate login commands")
+			selectedApps := 0
+			if mailScope || mailSendScope {
+				selectedApps++
+			}
+			if calendarScope || telemostScope {
+				selectedApps++
+			}
+			if formsScope {
+				selectedApps++
+			}
+			if selectedApps > 1 {
+				return errors.New("mail, calendar/telemost, and forms scopes use different Yandex OAuth apps; run separate login commands")
 			}
 			profile := ""
 			if mailScope || mailSendScope {
@@ -41,6 +53,13 @@ func newLoginCmd() *cobra.Command {
 				cfg.ClientID = config.CalendarClientID()
 				if cfg.ClientID == "" {
 					return errors.New("no Calendar/Telemost OAuth client_id: set YX360_CALENDAR_CLIENT_ID")
+				}
+			}
+			if formsScope {
+				profile = formsProfile
+				cfg.ClientID = config.FormsClientID()
+				if cfg.ClientID == "" {
+					return errors.New("no Forms OAuth client_id: set YX360_FORMS_CLIENT_ID")
 				}
 			}
 			scopes := append([]string(nil), cfg.Scopes...)
@@ -55,6 +74,9 @@ func newLoginCmd() *cobra.Command {
 			}
 			if telemostScope {
 				scopes = append(scopes, config.TelemostCreateScope)
+			}
+			if formsScope {
+				scopes = append(scopes, config.FormsReadScope, config.FormsWriteScope)
 			}
 
 			loopback := auth.NewLoopbackProvider(cfg)
@@ -97,6 +119,7 @@ func newLoginCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&mailSendScope, "mail-send", false, "request Mail SMTP send access")
 	cmd.Flags().BoolVar(&calendarScope, "calendar", false, "request Calendar access")
 	cmd.Flags().BoolVar(&telemostScope, "telemost", false, "request Telemost conference creation access")
+	cmd.Flags().BoolVar(&formsScope, "forms", false, "request Forms read and write access")
 	return cmd
 }
 

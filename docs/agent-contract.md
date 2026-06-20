@@ -12,10 +12,12 @@ This document defines the stable, agent-facing usage contract for `yx360`. Agent
 - `mail send` and `mail unsubscribe --method mailto --apply/--yes` require a stored credential containing `mail:smtp`; obtain it with `yx360 login --mail --mail-send`.
 - Calendar commands require a stored `calendar-telemost` profile credential containing `calendar:all`; obtain it with `yx360 login --calendar`.
 - Telemost commands require the same `calendar-telemost` profile containing `telemost-api:conferences.create`; obtain it with `yx360 login --telemost`.
+- `YX360_FORMS_CLIENT_ID` and `YX360_FORMS_ORG_ID` must be set for `yx360 login --forms` and all `forms` commands. The Forms API is available only to Yandex 360 for Business organizations. The org id is sent as `X-Org-Id` when numeric, or `X-Cloud-Org-Id` when non-numeric (Yandex Cloud org). There is no auto-discovery; an invalid org id returns an `organization required` / `user not in organization` API error.
+- `forms` commands require a stored `forms` profile credential containing `forms:read` and `forms:write`; obtain it with `yx360 login --forms`.
 
 Credentials are stored in the OS keychain by default. Agents must not read the keychain blob directly; use CLI commands.
 
-Mail and Calendar/Telemost use different Yandex OAuth apps. Do not request Mail scopes together with Calendar/Telemost scopes; the CLI rejects that combination before OAuth because Yandex rejects the mixed scope set.
+Mail, Calendar/Telemost, and Forms use different Yandex OAuth apps. Do not request scopes from more than one of these groups in a single `login`; the CLI rejects the combination before OAuth because Yandex rejects mixed scope sets.
 
 ## JSON Mode
 
@@ -33,6 +35,11 @@ yx360 --json calendar create --title "Call" --starts-at 2026-06-22T10:00:00+06:0
 yx360 --json calendar update <event-href> --title "New title" --yes
 yx360 --json calendar delete <event-href> --yes
 yx360 --json telemost create --yes
+yx360 --json forms responses <survey-id> --page-size 50
+yx360 --json forms create --title "Survey title" --yes
+yx360 --json forms questions add <survey-id> --label "Контент" --rating 5 --yes
+yx360 --json forms publish <survey-id> --yes
+yx360 --json forms unpublish <survey-id> --yes
 ```
 
 Current JSON output is pretty-printed JSON on stdout. The shape is command-specific and contains non-secret result fields only, for example:
@@ -47,6 +54,12 @@ Current JSON output is pretty-printed JSON on stdout. The shape is command-speci
 - `calendar list`: array of events. Event fields include `id`, `href`, optional `etag`, `uid`, `title`, optional `description`, optional `location`, optional `url`, `starts_at`, `ends_at`, and optional `attendees`.
 - `calendar read/create/update/delete`: one event object with the same fields as above.
 - `telemost create`: `id`, `join_url`.
+- `forms responses`: `answers` (array) and optional `next_page_token`. Each answer is the raw API object — observed fields are `id` (number), `created` (timestamp), and `data` (array of `{value: [...]}` in question order). Field names vary; agents must tolerate additional or differing fields.
+- `forms create`: `id`, optional `title`, `public_url`, `answers_url`.
+- `forms questions add`: the created question object (`id`, `type`, `label`, `widget`, `items[]` with `id`/`label`/`slug`).
+- `forms publish`/`forms unpublish`: `survey_id`, `status` (`published` or `unpublished`); `publish` also returns `public_url` and `answers_url`.
+
+Public links are derived by the CLI (the API does not return them): a published form is at `https://forms.yandex.ru/cloud/<survey_id>`, answer stats at `https://forms.yandex.ru/cloud/admin/<survey_id>/answers?view=stats`.
 
 Agents may rely on field names listed above for the current major CLI surface. They must tolerate additional fields.
 
@@ -74,8 +87,11 @@ Known actionable errors:
 - `mail: IMAP OAuth authentication failed; enable mail-client access and app passwords/OAuth tokens in Yandex 360 Mail settings, then run yx360 login --mail`
 - `calendar: stored credential is missing, expired, or does not include calendar:all; run yx360 login --calendar`
 - `telemost: stored credential is missing, expired, or does not include telemost-api:conferences.create; run yx360 login --telemost`
-- `mail and calendar/telemost scopes use different Yandex OAuth apps; run separate login commands`
+- `mail, calendar/telemost, and forms scopes use different Yandex OAuth apps; run separate login commands`
 - `no Calendar/Telemost OAuth client_id: set YX360_CALENDAR_CLIENT_ID`
+- `forms: stored credential is missing, expired, or does not include the required forms scope; run yx360 login --forms`
+- `forms: no Forms OAuth client_id: set YX360_FORMS_CLIENT_ID`
+- `forms: no Forms org id: set YX360_FORMS_ORG_ID`
 - `OS keychain unavailable (...): on headless/CI hosts re-run with --insecure-file-store`
 
 Expired tokens are handled by re-running `yx360 login`; refresh is intentionally not implemented.
@@ -102,6 +118,14 @@ Calendar mutations and Telemost link creation are externally visible. Without `-
 Agents may pass `--yes` only after the user has explicitly approved the exact event title, time range, attendees, deletion target, or Telemost link creation.
 
 `calendar create --telemost` creates a Telemost conference first, then writes the returned `join_url` into the event. If Calendar creation fails after Telemost creation, the Telemost link may remain live; agents must surface that partial-failure risk.
+
+## Human Gate For Forms Create And Publish
+
+`forms create`, `forms questions add`, `forms publish`, and `forms unpublish` are writes. Without `--yes`, each prints a preview and requires interactive confirmation. A published form is publicly reachable by anyone with the link.
+
+Agents may pass `--yes` only after the user has explicitly approved the exact action — the survey title for `create`, or the target `survey-id` for `publish`/`unpublish`. A general task approval is not enough.
+
+`forms responses` is read-only and not gated. `survey-id` is supplied by the user or caller; there is no list-all-surveys command. `forms create` sets only the survey title (empty survey); add questions separately with `forms questions add <survey-id> --label <text> --rating <N>` (a 1..N radio rating question).
 
 ## Calendar IDs
 

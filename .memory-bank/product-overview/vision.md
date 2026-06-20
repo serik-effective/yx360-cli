@@ -25,7 +25,7 @@ TODO — owner to fill. (Likely: the owner's own agents + power users who need t
 
 ## Definition of done
 
-Current baseline: `yx360 login` works end-to-end through documented OAuth; Mail read/search/read-attachment/send works through IMAP/SMTP; Calendar CRUD via CalDAV and Telemost link creation are implemented and live-smoked. Broader DoD remains: the agent skill drives the CLI, and `brew install` from the tap works.
+Current baseline: `yx360 login` works end-to-end through documented OAuth; Mail read/search/read-attachment/send works through IMAP/SMTP; Calendar CRUD via CalDAV and Telemost link creation are implemented and live-smoked. Forms read/create/add-questions/publish is live-verified through the documented Forms API against a real Yandex 360 for Business org (Forms API is Business-org-only). Broader DoD remains: the agent skill drives the CLI, and `brew install` from the tap works.
 
 ## What we don't do
 
