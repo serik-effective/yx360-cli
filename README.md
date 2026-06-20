@@ -1,83 +1,84 @@
 # yx360-cli
 
-`yx360` is a Go CLI for Yandex 360 automation. The implemented surface signs in with documented Yandex OAuth and uses documented Mail IMAP/SMTP for mailbox read/search/read-attachment/send workflows.
+`yx360` — командная утилита для Яндекс 360. Сейчас она умеет входить через официальный Yandex OAuth и работать с почтой через IMAP/SMTP: читать входящие, искать письма, открывать письмо, скачивать вложения и отправлять письмо после подтверждения.
 
-The harness and agent docs in this repository are provisioning artifacts. They help Codex, Claude Code, OpenCode, and OpenClaw-style runtimes find the same project instructions; they are not a workflow wrapper and must not run feature work on behalf of the developer.
+Проект пока заточен под личный аккаунт и собственные данные пользователя. Админские сценарии, чужие ящики и организационные делегирования сюда не входят.
 
-## CLI Build And Install
+## Что уже работает
 
-Prerequisites:
+- `yx360 login` — вход через OAuth.
+- `yx360 login --mail` — вход с правами на чтение почты.
+- `yx360 login --mail --mail-send` — вход с правами на чтение и отправку.
+- `yx360 mail list` — список писем.
+- `yx360 mail search` — поиск.
+- `yx360 mail read` — чтение письма.
+- `yx360 mail attachment` — скачивание вложения.
+- `yx360 mail send` — отправка письма через SMTP.
 
-- Go 1.26 with toolchain `go1.26.4`.
-- A Yandex OAuth client id in `YX360_CLIENT_ID`.
-- Mail access enabled in Yandex 360 Mail settings before Mail commands are used.
+Отправка письма по умолчанию останавливается на предпросмотре и спрашивает подтверждение. Флаг `--yes` нужен только для случаев, где человек уже явно согласовал адресатов, тему, текст и вложения.
 
-Build locally:
+## Сборка
+
+Нужен Go 1.26, в модуле зафиксирован toolchain `go1.26.4`.
 
 ```bash
 go build -o bin/yx360 ./cmd/yx360
 ```
 
-Run checks:
+Проверки:
 
 ```bash
 go test ./...
 go vet ./...
 ```
 
-Sign in:
+## Первый вход
+
+Нужен OAuth client id от Яндекса:
 
 ```bash
-YX360_CLIENT_ID=<client-id> ./bin/yx360 login
-YX360_CLIENT_ID=<client-id> ./bin/yx360 login --mail --mail-send
+export YX360_CLIENT_ID=<client-id>
+./bin/yx360 login
 ```
 
-Mail examples:
+Для почты:
+
+```bash
+./bin/yx360 login --mail --mail-send
+```
+
+В настройках Яндекс 360 Почты должен быть разрешен доступ почтовых клиентов по IMAP/SMTP и OAuth-токенам. Если это выключено, IMAP/SMTP-аутентификация не пройдет даже с валидным OAuth-токеном.
+
+## Примеры
 
 ```bash
 ./bin/yx360 mail list --limit 20
 ./bin/yx360 mail search --from user@example.com --since 2026-06-01 --json
 ./bin/yx360 mail read <uid> --json
 ./bin/yx360 mail attachment <uid> <attachment-id> --out ./downloads
-./bin/yx360 mail send --to user@example.com --subject "Hello" --body "Text"
+./bin/yx360 mail send --to user@example.com --subject "Привет" --body "Текст письма"
 ```
 
-`mail send` shows a preview and asks for confirmation by default. Use `--yes` only when the caller has already obtained an explicit human approval for that send.
+`--json` включает машинно-читаемый вывод. Он нужен скриптам и агентам; человеку обычно проще читать обычный вывод.
 
-## Agent-Doc Installation Surfaces
+## Хранение токена
 
-Canonical project instructions live in `AGENTS.md`. Runtime-specific files should point at or preserve that source of truth instead of duplicating a second policy body.
+По умолчанию токен лежит в системном keychain. Для headless/CI есть флаг `--insecure-file-store`, но он пишет credential в plaintext-файл с правами `0600`.
 
-Current surfaces:
+Не включайте `--insecure-file-store` по привычке. С mail-scope токен дает доступ к почте, а с `mail:smtp` еще и к отправке писем.
 
-| Runtime | Project entrypoint | Status |
-|---------|--------------------|--------|
-| Codex | `AGENTS.md` | Docs-compatible project instructions. Adapter smoke is separate from CLI smoke. |
-| Claude Code | `CLAUDE.md` plus `AGENTS.md` | `CLAUDE.md` is a short current-state shim. |
-| OpenCode | `AGENTS.md` | Docs-compatible instruction surface; runtime adapter smoke remains pending. |
-| OpenClaw | `AGENTS.md` as project context where mounted into an OpenClaw workspace | OpenClaw is docs-verified as a self-hosted gateway, but yx360 adapter smoke remains pending. |
+## Ограничения
 
-OpenClaw notes are based on the canonical docs at `https://docs.openclaw.ai/`, which describe OpenClaw as a self-hosted gateway and document configuration at `~/.openclaw/openclaw.json`. This repository does not yet claim a verified OpenClaw adapter for yx360.
+- Refresh токена не реализован. Зарегистрированное приложение требует `client_secret` для refresh, а CLI не должен тащить секрет внутри бинарника. При истечении токена нужно снова выполнить `yx360 login`.
+- Сетевые вызовы к Яндексу идут по IPv4: в текущей среде IPv6-маршрут до Яндекса ломался.
+- OpenClaw пока отмечен как docs-compatible, но отдельный executable smoke для адаптера `yx360` в OpenClaw не запускался.
 
-Installer work must stay provisioning-only: copy, render, validate, sync, or doctor files. It must not implement features, run consilium workflows, or hide externally visible actions behind an install command.
+## Документы для агентов
 
-## Verification
+Основная документация для человека — этот README. Агентам нужны отдельные файлы:
 
-Docs-only verification:
+- [AGENTS.md](AGENTS.md) — рабочее соглашение для Codex/Claude/OpenCode.
+- [docs/agent-contract.md](docs/agent-contract.md) — контракт CLI для агентов: JSON, redaction, ошибки, подтверждение отправки.
+- [docs/runtime-compatibility.md](docs/runtime-compatibility.md) — Codex, Claude Code, OpenCode, OpenClaw.
 
-```bash
-sed -n '1,220p' CLAUDE.md
-sed -n '1,220p' README.md
-sed -n '1,240p' docs/agent-contract.md
-sed -n '1,260p' docs/runtime-compatibility.md
-```
-
-CLI verification:
-
-```bash
-go test ./...
-go vet ./...
-go build -o bin/yx360 ./cmd/yx360
-```
-
-Live Mail verification requires a real Yandex OAuth client id and account consent. Do not claim live runtime or OpenClaw adapter smoke unless those commands have actually been run in the target runtime.
+Эти файлы не являются пользовательским гайдом и не заменяют README.
