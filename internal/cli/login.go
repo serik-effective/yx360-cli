@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -9,24 +10,51 @@ import (
 	"github.com/effective-dev-os/yx360-cli/internal/config"
 )
 
+const (
+	mailProfile             = "mail"
+	calendarTelemostProfile = "calendar-telemost"
+)
+
 func newLoginCmd() *cobra.Command {
 	var (
 		noBrowser     bool
 		device        bool
 		mailScope     bool
 		mailSendScope bool
+		calendarScope bool
+		telemostScope bool
 	)
 	cmd := &cobra.Command{
 		Use:   "login",
 		Short: "Sign in to Yandex 360 via OAuth",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			cfg := config.Default()
+			if (calendarScope || telemostScope) && (mailScope || mailSendScope) {
+				return errors.New("mail and calendar/telemost scopes use different Yandex OAuth apps; run separate login commands")
+			}
+			profile := ""
+			if mailScope || mailSendScope {
+				profile = mailProfile
+			}
+			if calendarScope || telemostScope {
+				profile = calendarTelemostProfile
+				cfg.ClientID = config.CalendarClientID()
+				if cfg.ClientID == "" {
+					return errors.New("no Calendar/Telemost OAuth client_id: set YX360_CALENDAR_CLIENT_ID")
+				}
+			}
 			scopes := append([]string(nil), cfg.Scopes...)
 			if mailScope {
 				scopes = append(scopes, config.MailReadScope)
 			}
 			if mailSendScope {
 				scopes = append(scopes, config.MailSendScope)
+			}
+			if calendarScope {
+				scopes = append(scopes, config.CalendarScope)
+			}
+			if telemostScope {
+				scopes = append(scopes, config.TelemostCreateScope)
 			}
 
 			loopback := auth.NewLoopbackProvider(cfg)
@@ -43,7 +71,7 @@ func newLoginCmd() *cobra.Command {
 				return err
 			}
 
-			store, err := selectStore()
+			store, err := selectStoreFor(profile)
 			if err != nil {
 				return err
 			}
@@ -54,6 +82,7 @@ func newLoginCmd() *cobra.Command {
 			payload := loginPayload{
 				Status:  "logged-in",
 				Account: cred.Account,
+				Profile: profile,
 				Scopes:  cred.Scopes(),
 			}
 			if !cred.Expiry.IsZero() {
@@ -66,12 +95,15 @@ func newLoginCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&device, "device", false, "force the device-authorization flow")
 	cmd.Flags().BoolVar(&mailScope, "mail", false, "request read-only Mail IMAP access")
 	cmd.Flags().BoolVar(&mailSendScope, "mail-send", false, "request Mail SMTP send access")
+	cmd.Flags().BoolVar(&calendarScope, "calendar", false, "request Calendar access")
+	cmd.Flags().BoolVar(&telemostScope, "telemost", false, "request Telemost conference creation access")
 	return cmd
 }
 
 type loginPayload struct {
 	Status  string   `json:"status"`
 	Account string   `json:"account"`
+	Profile string   `json:"profile,omitempty"`
 	Scopes  []string `json:"scopes"`
 	Expiry  string   `json:"expiry,omitempty"`
 }
@@ -82,6 +114,9 @@ func humanLogin(p loginPayload) string {
 		account = "(account label unavailable)"
 	}
 	msg := "Signed in as " + account
+	if p.Profile != "" {
+		msg += " (" + p.Profile + ")"
+	}
 	if p.Expiry != "" {
 		msg += "; token expires " + p.Expiry
 	}

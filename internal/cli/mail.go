@@ -251,7 +251,7 @@ func addMailQueryFlags(cmd *cobra.Command, q *mail.Query, search bool) {
 }
 
 func mailService(cmd *cobra.Command) (*mail.Service, error) {
-	store, err := selectStore()
+	store, err := selectStoreFor(mailProfile)
 	if err != nil {
 		return nil, err
 	}

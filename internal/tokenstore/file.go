@@ -15,11 +15,19 @@ type FileStore struct {
 }
 
 func NewFileStore() (*FileStore, error) {
+	return NewFileStoreFor("")
+}
+
+func NewFileStoreFor(profile string) (*FileStore, error) {
 	dir, err := os.UserConfigDir()
 	if err != nil {
 		return nil, err
 	}
-	return &FileStore{path: filepath.Join(dir, "yx360", "credential.json")}, nil
+	name := "credential.json"
+	if profile != "" {
+		name = "credential." + profile + ".json"
+	}
+	return &FileStore{path: filepath.Join(dir, "yx360", name)}, nil
 }
 
 func (s *FileStore) Save(_ context.Context, cred *auth.Credential) error {

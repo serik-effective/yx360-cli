@@ -21,9 +21,25 @@ type Mail struct {
 	SendScope string
 }
 
+type Calendar struct {
+	BaseURL string
+	Scope   string
+}
+
+type Telemost struct {
+	BaseURL     string
+	CreateScope string
+}
+
 const defaultClientID = ""
 const MailReadScope = "mail:imap_full"
 const MailSendScope = "mail:smtp"
+const CalendarScope = "calendar:all"
+const TelemostCreateScope = "telemost-api:conferences.create"
+
+func CalendarClientID() string {
+	return os.Getenv("YX360_CALENDAR_CLIENT_ID")
+}
 
 func Default() OAuth {
 	clientID := os.Getenv("YX360_CLIENT_ID")
@@ -58,4 +74,20 @@ func DefaultMail() Mail {
 		ReadScope: MailReadScope,
 		SendScope: MailSendScope,
 	}
+}
+
+func DefaultCalendar() Calendar {
+	baseURL := os.Getenv("YX360_CALDAV_URL")
+	if baseURL == "" {
+		baseURL = "https://caldav.yandex.ru"
+	}
+	return Calendar{BaseURL: baseURL, Scope: CalendarScope}
+}
+
+func DefaultTelemost() Telemost {
+	baseURL := os.Getenv("YX360_TELEMOST_API_URL")
+	if baseURL == "" {
+		baseURL = "https://cloud-api.yandex.net/v1/telemost-api"
+	}
+	return Telemost{BaseURL: baseURL, CreateScope: TelemostCreateScope}
 }

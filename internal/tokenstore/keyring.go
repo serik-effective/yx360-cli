@@ -16,10 +16,20 @@ const (
 	keyringUser    = "credential"
 )
 
-type KeyringStore struct{}
+type KeyringStore struct {
+	user string
+}
 
 func NewKeyringStore() *KeyringStore {
-	return &KeyringStore{}
+	return NewKeyringStoreFor("")
+}
+
+func NewKeyringStoreFor(profile string) *KeyringStore {
+	user := keyringUser
+	if profile != "" {
+		user = keyringUser + ":" + profile
+	}
+	return &KeyringStore{user: user}
 }
 
 func (s *KeyringStore) Save(_ context.Context, cred *auth.Credential) error {
@@ -27,14 +37,14 @@ func (s *KeyringStore) Save(_ context.Context, cred *auth.Credential) error {
 	if err != nil {
 		return err
 	}
-	if err := keyring.Set(keyringService, keyringUser, string(blob)); err != nil {
+	if err := keyring.Set(keyringService, s.user, string(blob)); err != nil {
 		return wrapKeyringErr(err)
 	}
 	return nil
 }
 
 func (s *KeyringStore) Load(_ context.Context) (*auth.Credential, error) {
-	blob, err := keyring.Get(keyringService, keyringUser)
+	blob, err := keyring.Get(keyringService, s.user)
 	if err != nil {
 		if errors.Is(err, keyring.ErrNotFound) {
 			return nil, ErrNoCredential
@@ -49,7 +59,7 @@ func (s *KeyringStore) Load(_ context.Context) (*auth.Credential, error) {
 }
 
 func (s *KeyringStore) Clear(_ context.Context) error {
-	if err := keyring.Delete(keyringService, keyringUser); err != nil {
+	if err := keyring.Delete(keyringService, s.user); err != nil {
 		if errors.Is(err, keyring.ErrNotFound) {
 			return ErrNoCredential
 		}

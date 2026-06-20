@@ -24,12 +24,18 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newLoginCmd())
 	root.AddCommand(newLogoutCmd())
 	root.AddCommand(newMailCmd())
+	root.AddCommand(newCalendarCmd())
+	root.AddCommand(newTelemostCmd())
 	return root
 }
 
 func selectStore() (tokenstore.TokenStore, error) {
+	return selectStoreFor("")
+}
+
+func selectStoreFor(profile string) (tokenstore.TokenStore, error) {
 	if insecureFileStore {
-		return tokenstore.NewFileStore()
+		return tokenstore.NewFileStoreFor(profile)
 	}
-	return tokenstore.NewKeyringStore(), nil
+	return tokenstore.NewKeyringStoreFor(profile), nil
 }
