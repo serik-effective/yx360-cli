@@ -47,13 +47,14 @@ func populateAccount(ctx context.Context, cred *Credential) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, accountInfoURL, nil)
+	req, err := http.NewRequestWithContext(httpContext(ctx), http.MethodGet, accountInfoURL, nil)
 	if err != nil {
 		return
 	}
 	req.Header.Set("Authorization", "OAuth "+cred.AccessToken)
 
-	resp, err := http.DefaultClient.Do(req)
+	client := httpContext(ctx).Value(oauth2.HTTPClient).(*http.Client)
+	resp, err := client.Do(req)
 	if err != nil {
 		return
 	}

@@ -26,3 +26,13 @@ func TestCredentialValid(t *testing.T) {
 		})
 	}
 }
+
+func TestCredentialScopes(t *testing.T) {
+	cred := &Credential{Scope: "login:info mail:imap_full"}
+	if !cred.HasScopes("login:info", "mail:imap_full") {
+		t.Fatalf("expected required scopes to be present")
+	}
+	if cred.HasScopes("mail:smtp_full") {
+		t.Fatalf("unexpected SMTP scope")
+	}
+}

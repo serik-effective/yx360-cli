@@ -11,21 +11,30 @@ import (
 
 func newLoginCmd() *cobra.Command {
 	var (
-		noBrowser bool
-		device    bool
+		noBrowser     bool
+		device        bool
+		mailScope     bool
+		mailSendScope bool
 	)
 	cmd := &cobra.Command{
 		Use:   "login",
 		Short: "Sign in to Yandex 360 via OAuth",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			cfg := config.Default()
+			scopes := append([]string(nil), cfg.Scopes...)
+			if mailScope {
+				scopes = append(scopes, config.MailReadScope)
+			}
+			if mailSendScope {
+				scopes = append(scopes, config.MailSendScope)
+			}
 
 			loopback := auth.NewLoopbackProvider(cfg)
 			deviceProvider := auth.NewDeviceProvider(cfg, cmd.ErrOrStderr())
 			ladder := auth.NewLadder(loopback, deviceProvider)
 
 			cred, err := ladder.Authenticate(cmd.Context(), auth.AuthOptions{
-				Scopes:       cfg.Scopes,
+				Scopes:       scopes,
 				PreferDevice: device,
 				NoBrowser:    noBrowser,
 				Port:         cfg.LoopbackPort,
@@ -45,7 +54,7 @@ func newLoginCmd() *cobra.Command {
 			payload := loginPayload{
 				Status:  "logged-in",
 				Account: cred.Account,
-				Scopes:  cfg.Scopes,
+				Scopes:  cred.Scopes(),
 			}
 			if !cred.Expiry.IsZero() {
 				payload.Expiry = cred.Expiry.Format(time.RFC3339)
@@ -55,6 +64,8 @@ func newLoginCmd() *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&noBrowser, "no-browser", false, "skip the loopback browser flow, use device flow")
 	cmd.Flags().BoolVar(&device, "device", false, "force the device-authorization flow")
+	cmd.Flags().BoolVar(&mailScope, "mail", false, "request read-only Mail IMAP access")
+	cmd.Flags().BoolVar(&mailSendScope, "mail-send", false, "request Mail SMTP send access")
 	return cmd
 }
 

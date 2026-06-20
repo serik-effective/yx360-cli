@@ -172,13 +172,13 @@ Other bundled skills under `.claude/skills/` (see `.memory-bank/tech-details/dep
 │   ├── index.md
 │   ├── product-overview/           # vision, pipeline-stages, user-stories, anti-stories, roadmap
 │   ├── steerings/                  # project-rules, project-types
-│   └── tech-details/               # 9 files: setup-and-sync, agents-layout, hooks-and-crons, dependencies, ...
+│   └── tech-details/               # stack and implementation notes
 ├── .assistant/                     # working memory across sessions
 │   ├── INVARIANTS.md               # 12 hard rules
 │   ├── decisions.md                # append-only decision log
 │   └── open-questions.md           # unresolved design questions
 ├── .claude/
-│   ├── agents/                     # 12 subagent files
+│   ├── agents/                     # subagent files
 │   ├── hooks/                      # SessionStart inject script + others
 │   ├── skills/                     # /setup, /pre-feature, /research + anti-ai-slop, frontend-design, swiftui-pro, swiftui-macos-26, memory-bank-defrag
 │   └── settings.json               # hook registration

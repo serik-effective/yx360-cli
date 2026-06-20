@@ -24,3 +24,13 @@ Softened by the OAuth decision: documented OAuth with explicit user consent is T
 
 ## OQ-006 — Headless / CI token storage — CLOSED by D-003 (2026-06-20)
 `zalando/go-keyring` errors when no OS secret service is present (headless Linux / CI / Docker, no D-Bus). Resolved: **flag-gated plaintext file store** (`--insecure-file-store` → `~/.config/yx360/credential.json`, mode 0600); keychain remains the default; a headless keychain error points the user at the flag. Never silent plaintext. Implemented in PR-1.
+
+## OQ-007 — Exact Yandex Mail OAuth scopes — CLOSED by D-005 + D-007 (2026-06-20)
+Resolved: read-side Mail uses `mail:imap_full`; SMTP/send uses `mail:smtp`. Both came from Yandex OAuth app UI. Live SMTP self-send passed during implementation.
+
+## OQ-010 — IMAP combined search backend instability
+**Priority:** low
+**Question:** Does Yandex IMAP reliably support combined `FROM` + `SUBJECT` searches on the target mailbox, or do we need a client-side fallback for combined filters?
+**Why it matters:** During Mail send verification, one combined search returned `NO [UNAVAILABLE] UID SEARCH Backend error`, while list/read confirmed the sent message. If this repeats, `yx360 mail search` may need retry or staged filtering.
+**Linked:** D-008; `swarm-report/mail-send-implementation-2026-06-20.md`
+**Status:** open; run `/diagnose mail search` if the failure repeats.

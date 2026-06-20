@@ -4,19 +4,20 @@
 
 ## One-line
 
-A Yandex 360 CLI that authenticates by intercepting a real session token and then drives the private endpoints the official public API does not expose — also shippable as an agent skill and installable via Homebrew.
+A Yandex 360 CLI that authenticates through documented Yandex OAuth and exposes useful Yandex 360 surfaces through a safe command-line interface — also shippable as an agent skill and installable via Homebrew.
 
 ## The problem
 
-Yandex 360's documented public API is narrower than what the first-party clients can do. The mobile app and the web app reach internal endpoints (calendar, mail, Telemost, disk, and more) that the public API never surfaces. We want that full surface.
+Yandex 360's documented public API is narrower than what the first-party clients can do. Some products have documented protocols or APIs, while others may still require web/mobile surface research. The CLI should prefer documented OAuth and documented protocols first, then escalate only for named capability gaps.
 
 ## The approach
 
-1. **Reverse-engineer the private surface.** Start with the easy target — the **web app** — and escalate to the **mobile app** only when the web surface is missing something we need.
-2. **Sign-in via interception, not API keys.** `yx360 login` opens a webview to Yandex 360, the user logs in normally, and the CLI captures the resulting session token via a local webhook / callback.
-3. **Drive the private endpoints through that token** behind a clean CLI-like interface.
-4. **Ship as an agent skill** so any AI agent can drive the same CLI (drop-in skill, not a bespoke integration).
-5. **Distribute via a Homebrew tap** so `brew install` provisions the CLI.
+1. **Use documented OAuth first.** `yx360 login` uses Yandex OAuth authorization-code + PKCE as a public client, with loopback and device-flow paths.
+2. **Prefer documented service protocols.** Mail v1 uses IMAP/SMTP with OAuth scopes, not a private Mail REST API.
+3. **Escalate only for named gaps.** Use web/mobile surface research only when documented OAuth APIs or protocols cannot cover a required capability.
+4. **Drive features through a clean CLI-like interface** with safe defaults and JSON output for agents.
+5. **Ship as an agent skill** so any AI agent can drive the same CLI (drop-in skill, not a bespoke integration).
+6. **Distribute via a Homebrew tap** so `brew install` provisions the CLI.
 
 ## Target audience
 
@@ -24,7 +25,7 @@ TODO — owner to fill. (Likely: the owner's own agents + power users who need t
 
 ## Definition of done
 
-TODO — owner to fill. Candidate DoD: `yx360 login` captures a token end-to-end; at least one private endpoint (e.g. calendar list) works through the CLI; the agent skill drives it; `brew install` from the tap works.
+Current baseline: `yx360 login` works end-to-end through documented OAuth, and Mail read/search/read-attachment/send works through IMAP/SMTP with live smoke verification. Broader DoD remains: at least one non-Mail Yandex 360 surface works through the CLI, the agent skill drives it, and `brew install` from the tap works.
 
 ## What we don't do
 

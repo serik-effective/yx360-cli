@@ -23,14 +23,15 @@ func (p *DeviceProvider) Authenticate(ctx context.Context, opts AuthOptions) (*C
 	}
 
 	conf := oauthConfig(p.cfg, opts)
-	da, err := conf.DeviceAuth(ctx)
+	httpCtx := httpContext(ctx)
+	da, err := conf.DeviceAuth(httpCtx)
 	if err != nil {
 		return nil, fmt.Errorf("device authorization request failed: %w", err)
 	}
 
 	fmt.Fprintf(p.prompt, "Open %s and enter code: %s\n", da.VerificationURI, da.UserCode)
 
-	tok, err := conf.DeviceAccessToken(ctx, da)
+	tok, err := conf.DeviceAccessToken(httpCtx, da)
 	if err != nil {
 		return nil, fmt.Errorf("device token exchange failed: %w", err)
 	}

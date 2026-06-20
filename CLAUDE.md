@@ -1,35 +1,43 @@
 # yx360-cli
 
-CLI that signs into Yandex 360 via an intercepted web/mobile session token and exposes the private endpoints (calendar, mail, Telemost, disk) that the official public API does not — usable both as a human CLI and as an agent skill.
+Go CLI for Yandex 360 automation. Current production path is documented Yandex OAuth plus documented Mail IMAP/SMTP.
 
 **PROJECT_TYPE: 2** (production, human-gated deploys).
 
-## Entry points
+## Read First
 
-- Working agreement (philosophy, code rules, hard-stops, routing): `AGENTS.md`
+- Complete working agreement: `AGENTS.md`
 - Hard invariants: `.assistant/INVARIANTS.md`
 - Project knowledge: `.memory-bank/index.md`
-- Working memory (decisions, open questions): `.assistant/`
+- Decisions and open questions: `.assistant/decisions.md`, `.assistant/open-questions.md`
 
-## Stack
+Follow `AGENTS.md` as the source of truth. This file is only a Claude Code entry point and current-state summary.
 
-- **Primary:** Go (single-binary CLI, distributed via a Homebrew tap).
-- **Secondary surfaces (future):** a login webview / token-capture page (web), release + tap pipeline (infra).
+## Current Stack
 
-## Domain
+- **Language:** Go, single static CLI binary.
+- **Auth:** documented Yandex OAuth authorization-code + PKCE against `oauth.yandex.ru`; no embedded `client_secret`.
+- **Token storage:** OS keychain by default. Plaintext file storage exists only behind explicit `--insecure-file-store`.
+- **Mail:** documented IMAP/SMTP via OAuth scopes `mail:imap_full` and `mail:smtp`.
+- **Network:** Yandex OAuth/account-info/IMAP/SMTP calls use IPv4 because the current deployment network has broken Yandex IPv6 routing.
 
-Reverse-engineering Yandex 360 private endpoints. The relevant consilium cluster is scraping / anti-bot — `surface-scout`, `scraping-architect`, `scraping-diagnostician`, `anti-bot-evasion` — not the generic backend path alone. Token interception, request signing, and session capture are first-class concerns.
+## Current Product Surface
 
-## Agents
+- `yx360 login` signs in with Yandex OAuth.
+- `yx360 login --mail` requests Mail read scope.
+- `yx360 login --mail --mail-send` requests Mail read + SMTP send scopes.
+- `yx360 mail list`, `mail search`, `mail read`, `mail attachment`, and `mail send` operate through IMAP/SMTP.
+- `mail send` is human-gated by default; `--yes` is explicit and non-default.
+- Expired tokens require re-auth with `yx360 login`; refresh is intentionally unimplemented because the registered Yandex app requires a `client_secret` for refresh.
 
-### Executing
-| Agent     | Scope            |
-|-----------|------------------|
-| backend   | `**/*.go`        |
+## Escalation Rule
 
-### Models
-| Role | Model |
-|------|-------|
-| architect | opus |
-| security  | opus |
-| *         | sonnet |
+Use documented Yandex APIs and protocols first. Private web/mobile surface research is allowed only for named gaps where documented APIs are missing or empirically fail, and must go through the scraping/surface consilium path before implementation.
+
+## Agent Notes
+
+- Use `--json` for machine-readable command output.
+- Do not scrape human output when JSON exists.
+- Never print, persist, or commit OAuth access tokens, refresh tokens, secrets, cookies, or captured browser sessions.
+- See `docs/agent-contract.md` for the stable agent-facing CLI contract.
+- See `docs/runtime-compatibility.md` for Codex, Claude Code, OpenCode, and OpenClaw compatibility status.

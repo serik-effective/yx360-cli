@@ -12,7 +12,18 @@ type OAuth struct {
 	Scopes        []string
 }
 
+type Mail struct {
+	IMAPHost  string
+	IMAPPort  int
+	SMTPHost  string
+	SMTPPort  int
+	ReadScope string
+	SendScope string
+}
+
 const defaultClientID = ""
+const MailReadScope = "mail:imap_full"
+const MailSendScope = "mail:smtp"
 
 func Default() OAuth {
 	clientID := os.Getenv("YX360_CLIENT_ID")
@@ -27,5 +38,24 @@ func Default() OAuth {
 		RedirectURI:   "http://localhost:8899",
 		LoopbackPort:  8899,
 		Scopes:        []string{"login:info"},
+	}
+}
+
+func DefaultMail() Mail {
+	imapHost := os.Getenv("YX360_IMAP_HOST")
+	if imapHost == "" {
+		imapHost = "imap.yandex.ru"
+	}
+	smtpHost := os.Getenv("YX360_SMTP_HOST")
+	if smtpHost == "" {
+		smtpHost = "smtp.yandex.ru"
+	}
+	return Mail{
+		IMAPHost:  imapHost,
+		IMAPPort:  993,
+		SMTPHost:  smtpHost,
+		SMTPPort:  465,
+		ReadScope: MailReadScope,
+		SendScope: MailSendScope,
 	}
 }

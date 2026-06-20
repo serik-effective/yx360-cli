@@ -1,6 +1,9 @@
 package auth
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 type GrantKind string
 
@@ -29,4 +32,24 @@ func (c *Credential) Valid() bool {
 		return true
 	}
 	return time.Now().Add(expirySkew).Before(c.Expiry)
+}
+
+func (c *Credential) Scopes() []string {
+	if c == nil || c.Scope == "" {
+		return nil
+	}
+	return strings.Fields(c.Scope)
+}
+
+func (c *Credential) HasScopes(required ...string) bool {
+	granted := make(map[string]bool, len(c.Scopes()))
+	for _, scope := range c.Scopes() {
+		granted[scope] = true
+	}
+	for _, scope := range required {
+		if !granted[scope] {
+			return false
+		}
+	}
+	return true
 }

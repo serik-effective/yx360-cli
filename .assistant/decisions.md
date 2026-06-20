@@ -48,3 +48,48 @@
 **Note (unverified lever):** re-registering the Yandex app as a *native/installed* (public) client *might* permit secretless refresh — not tested. Yearly re-auth is acceptable; revisit only if it proves annoying.
 **Source:** live verify this session; `swarm-report/yx360-oauth-login-scaffold-implementation-2026-06-20.md`. Secret handled only via untracked `.env` (gitignored in both repos).
 **Closes:** the B2 open risk (secretless refresh).
+
+---
+
+## D-005 — Mail read scope identified
+**Date:** 2026-06-20
+**Status:** accepted
+**Decision:** Yandex OAuth app UI exposes `mail:imap_full` for Mail IMAP access. Use this as the read-side scope for inbox listing, search, message read, and attachment fetch. SMTP/send scope is still unresolved; `mail send` remains a separate later slice.
+**Why now:** Owner checked the Yandex OAuth app UI after the fresh `/pre-feature` report raised OQ-007.
+**Source:** Owner report in this session on 2026-06-20. UI-derived, not found in public docs; live login + IMAP auth still must verify it before implementation is marked done.
+**Closes:** read-side part of OQ-007.
+
+---
+
+## D-006 — Yandex network calls use IPv4, not IPv6
+**Date:** 2026-06-20
+**Status:** accepted
+**Decision:** `yx360` uses IPv4 (`tcp4`) for Yandex OAuth/account-info HTTP calls and Yandex Mail IMAP TLS calls. Do not rely on Go's default dual-stack dialing for these endpoints until the deployment network proves IPv6 is reliable.
+**Why now:** Live `login --mail` and `mail list` both failed when Go selected IPv6 Yandex addresses (`2a02:...`) with `socket is not connected`; the same endpoints were reachable over IPv4, and the full read-only Mail smoke passed after forcing IPv4.
+**Scope:** Applies to Yandex OAuth (`oauth.yandex.ru`, `login.yandex.ru`) and Mail IMAP (`imap.yandex.ru`) in this CLI. This is not a general ban on IPv6 for unrelated future integrations.
+**Source:** Live verification on 2026-06-20 during `mail-inbox-search-attachments-send` implementation; see `swarm-report/mail-inbox-search-attachments-send-implementation-2026-06-20.md`.
+
+---
+
+## D-007 — Mail send scope identified
+**Date:** 2026-06-20
+**Status:** accepted
+**Decision:** Yandex OAuth app UI exposes `mail:smtp` for Mail SMTP/send access. Use this as the send-side scope for `yx360 mail send`, separate from read-side `mail:imap_full`.
+**Why now:** Owner checked the Yandex OAuth app UI after `/implementor send mail` blocked on unresolved SMTP/send scope.
+**Source:** Owner report in this session on 2026-06-20. UI-derived, not found in public docs; live login + SMTP auth/send still must verify it before implementation is marked complete.
+**Closes:** remaining SMTP/send part of OQ-007.
+
+---
+
+## D-008 — Mail IMAP/SMTP feature completed
+**Date:** 2026-06-20
+**Status:** accepted
+**Decision:** `yx360` now supports Yandex 360 Mail read/search/read-attachment/send through documented IMAP/SMTP with OAuth scopes. `mail:imap_full` gates read-side commands (`mail list`, `mail search`, `mail read`, `mail attachment`); `mail:smtp` gates `mail send`. Send is human-gated by default with a preview and confirmation; `--yes` is explicit and non-default.
+**Why now:** Owner wanted the Mail feature completed end-to-end after read-only Mail passed live verification and the SMTP scope was found in the Yandex OAuth app UI.
+**Alternatives rejected:**
+- Private Mail REST API: no public individual-message REST API was found; documented IMAP/SMTP is sufficient for v1.
+- App-password auth: rejected for v1 because the accepted project direction is documented OAuth, no extra user-managed mail secret.
+- Non-interactive send by default: rejected because sending email is externally visible and must stay behind a human gate.
+**Source:** `swarm-report/mail-inbox-search-attachments-send-plan-2026-06-20.md`, `swarm-report/mail-inbox-search-attachments-send-implementation-2026-06-20.md`, `swarm-report/mail-send-implementation-2026-06-20.md`.
+**Closes:** OQ-007.
+**Raises:** OQ-010.

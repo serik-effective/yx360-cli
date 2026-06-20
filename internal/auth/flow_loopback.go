@@ -116,7 +116,7 @@ func (p *LoopbackProvider) Authenticate(ctx context.Context, opts AuthOptions) (
 		if res.err != nil {
 			return nil, res.err
 		}
-		tok, err := conf.Exchange(ctx, res.code, oauth2.VerifierOption(verifier))
+		tok, err := conf.Exchange(httpContext(ctx), res.code, oauth2.VerifierOption(verifier))
 		if err != nil {
 			return nil, fmt.Errorf("oauth token exchange failed: %w", err)
 		}
