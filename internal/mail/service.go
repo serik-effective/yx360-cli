@@ -1,6 +1,7 @@
 package mail
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/tls"
@@ -9,6 +10,7 @@ import (
 	"io"
 	"mime"
 	"net"
+	"net/textproto"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -46,15 +48,16 @@ type Query struct {
 }
 
 type Message struct {
-	UID         uint32       `json:"uid"`
-	Folder      string       `json:"folder"`
-	Subject     string       `json:"subject"`
-	From        []string     `json:"from,omitempty"`
-	To          []string     `json:"to,omitempty"`
-	Date        string       `json:"date,omitempty"`
-	Size        int64        `json:"size,omitempty"`
-	Attachments []Attachment `json:"attachments,omitempty"`
-	Body        *Body        `json:"body,omitempty"`
+	UID         uint32              `json:"uid"`
+	Folder      string              `json:"folder"`
+	Subject     string              `json:"subject"`
+	From        []string            `json:"from,omitempty"`
+	To          []string            `json:"to,omitempty"`
+	Date        string              `json:"date,omitempty"`
+	Size        int64               `json:"size,omitempty"`
+	Attachments []Attachment        `json:"attachments,omitempty"`
+	Body        *Body               `json:"body,omitempty"`
+	Unsubscribe []UnsubscribeOption `json:"unsubscribe_options,omitempty"`
 }
 
 type Body struct {
@@ -90,7 +93,7 @@ func (s *Service) Read(ctx context.Context, folder string, uid uint32) (*Message
 	if err := selectFolder(c, folder); err != nil {
 		return nil, err
 	}
-	msgs, err := fetchMessages(c, folder, []imap.UID{imap.UID(uid)}, true)
+	msgs, err := fetchMessages(c, folder, []imap.UID{imap.UID(uid)}, true, true)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +115,7 @@ func (s *Service) DownloadAttachment(ctx context.Context, folder string, uid uin
 	if err := selectFolder(c, folder); err != nil {
 		return "", err
 	}
-	msgs, err := fetchMessages(c, folder, []imap.UID{imap.UID(uid)}, true)
+	msgs, err := fetchMessages(c, folder, []imap.UID{imap.UID(uid)}, true, false)
 	if err != nil {
 		return "", err
 	}
@@ -159,7 +162,7 @@ func (s *Service) search(ctx context.Context, q Query, filtered bool) ([]Message
 		return nil, err
 	}
 	uids := limitNewest(data.AllUIDs(), q.Limit)
-	return fetchMessages(c, q.Folder, uids, false)
+	return fetchMessages(c, q.Folder, uids, false, false)
 }
 
 func (s *Service) connect(ctx context.Context) (*imapclient.Client, error) {
@@ -206,7 +209,7 @@ func selectFolder(c *imapclient.Client, folder string) error {
 	return err
 }
 
-func fetchMessages(c *imapclient.Client, folder string, uids []imap.UID, includeBody bool) ([]Message, error) {
+func fetchMessages(c *imapclient.Client, folder string, uids []imap.UID, includeBody bool, includeUnsubscribe bool) ([]Message, error) {
 	if len(uids) == 0 {
 		return nil, nil
 	}
@@ -221,6 +224,11 @@ func fetchMessages(c *imapclient.Client, folder string, uids []imap.UID, include
 	if includeBody {
 		options.BodySection = []*imap.FetchItemBodySection{{Peek: true, Partial: &imap.SectionPartial{Size: maxReadBytes}}}
 	}
+	var unsubscribeSection *imap.FetchItemBodySection
+	if includeUnsubscribe {
+		unsubscribeSection = unsubscribeHeaderSection()
+		options.BodySection = append(options.BodySection, unsubscribeSection)
+	}
 	buffers, err := c.Fetch(set, options).Collect()
 	if err != nil {
 		return nil, err
@@ -232,9 +240,51 @@ func fetchMessages(c *imapclient.Client, folder string, uids []imap.UID, include
 			raw := buf.FindBodySection(options.BodySection[0])
 			msg.Body = bodyFromRaw(raw)
 		}
+		if includeUnsubscribe {
+			msg.Unsubscribe = optionsFromHeaderBytes(buf.FindBodySection(unsubscribeSection))
+		}
 		out = append(out, msg)
 	}
 	return out, nil
+}
+
+func fetchUnsubscribeOptions(c *imapclient.Client, uid imap.UID) ([]UnsubscribeOption, error) {
+	section := unsubscribeHeaderSection()
+	buffers, err := c.Fetch(imap.UIDSetNum(uid), &imap.FetchOptions{
+		UID:         true,
+		BodySection: []*imap.FetchItemBodySection{section},
+	}).Collect()
+	if err != nil {
+		return nil, err
+	}
+	if len(buffers) == 0 {
+		return nil, fmt.Errorf("mail: message UID %d not found", uid)
+	}
+	options := optionsFromHeaderBytes(buffers[0].FindBodySection(section))
+	if len(options) > 0 {
+		return options, nil
+	}
+	raw, err := fetchWholeMessage(c, uid)
+	if err != nil {
+		return nil, err
+	}
+	return optionsFromHeaderBytes(raw), nil
+}
+
+func unsubscribeHeaderSection() *imap.FetchItemBodySection {
+	return &imap.FetchItemBodySection{
+		Peek:         true,
+		Specifier:    imap.PartSpecifierHeader,
+		HeaderFields: []string{"List-Unsubscribe", "List-Unsubscribe-Post"},
+	}
+}
+
+func optionsFromHeaderBytes(raw []byte) []UnsubscribeOption {
+	header, err := textproto.NewReader(bufio.NewReader(bytes.NewReader(raw))).ReadMIMEHeader()
+	if err != nil {
+		return nil
+	}
+	return ParseUnsubscribeHeaders(header.Get("List-Unsubscribe"), header.Get("List-Unsubscribe-Post"))
 }
 
 func fetchWholeMessage(c *imapclient.Client, uid imap.UID) ([]byte, error) {

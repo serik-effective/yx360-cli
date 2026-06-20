@@ -10,6 +10,7 @@ import (
 	"mime"
 	"net"
 	"net/smtp"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -73,6 +74,84 @@ func (s *Service) Send(ctx context.Context, opts SendOptions) (*SendResult, erro
 		Recipients: recipients,
 		Subject:    opts.Subject,
 	}, nil
+}
+
+func (s *Service) SendGeneratedUnsubscribe(ctx context.Context, mailtoURI string) (*SendResult, error) {
+	if s.cred == nil || !s.cred.Valid() || !s.cred.HasScopes(s.cfg.SendScope) {
+		return nil, ErrSendReauthRequired
+	}
+	parsed, err := parseMailtoUnsubscribe(mailtoURI)
+	if err != nil {
+		return nil, err
+	}
+	opts := SendOptions{
+		From:    s.cred.Account,
+		To:      parsed.To,
+		Subject: parsed.Subject,
+		Text:    parsed.Body,
+	}
+	if opts.From == "" {
+		return nil, errors.New("mail: from address is required")
+	}
+	if len(opts.To) == 0 {
+		return nil, errors.New("mail: mailto unsubscribe has no recipient")
+	}
+	if opts.Subject == "" {
+		opts.Subject = "Unsubscribe"
+	}
+	if opts.Text == "" {
+		opts.Text = "Unsubscribe"
+	}
+	raw, err := buildMessage(opts)
+	if err != nil {
+		return nil, err
+	}
+	recipients := allRecipients(opts)
+	if err := s.sendSMTP(ctx, opts.From, recipients, raw); err != nil {
+		return nil, err
+	}
+	return &SendResult{
+		Status:     "sent",
+		From:       opts.From,
+		Recipients: recipients,
+		Subject:    opts.Subject,
+	}, nil
+}
+
+type mailtoUnsubscribe struct {
+	To      []string
+	Subject string
+	Body    string
+}
+
+func parseMailtoUnsubscribe(raw string) (*mailtoUnsubscribe, error) {
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return nil, err
+	}
+	if strings.ToLower(parsed.Scheme) != "mailto" {
+		return nil, fmt.Errorf("mail: unsubscribe URI is not mailto: %s", raw)
+	}
+	recipients := parsed.Opaque
+	if recipients == "" {
+		recipients = strings.TrimPrefix(parsed.Path, "/")
+	}
+	to, err := url.PathUnescape(recipients)
+	if err != nil {
+		return nil, err
+	}
+	values := parsed.Query()
+	out := &mailtoUnsubscribe{
+		Subject: values.Get("subject"),
+		Body:    values.Get("body"),
+	}
+	for _, recipient := range strings.Split(to, ",") {
+		recipient = strings.TrimSpace(recipient)
+		if recipient != "" {
+			out.To = append(out.To, recipient)
+		}
+	}
+	return out, nil
 }
 
 func buildMessage(opts SendOptions) ([]byte, error) {

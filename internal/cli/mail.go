@@ -26,6 +26,7 @@ func newMailCmd() *cobra.Command {
 	cmd.AddCommand(newMailReadCmd())
 	cmd.AddCommand(newMailAttachmentCmd())
 	cmd.AddCommand(newMailSendCmd())
+	cmd.AddCommand(newMailUnsubscribeCmd())
 	return cmd
 }
 
@@ -186,6 +187,59 @@ func newMailSendCmd() *cobra.Command {
 	return cmd
 }
 
+func newMailUnsubscribeCmd() *cobra.Command {
+	var (
+		folder      string
+		methodValue string
+		apply       bool
+		yes         bool
+	)
+	cmd := &cobra.Command{
+		Use:   "unsubscribe <uid>",
+		Short: "Preview or apply List-Unsubscribe actions",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			uid, err := parseUID(args[0])
+			if err != nil {
+				return err
+			}
+			method, err := parseUnsubscribeMethod(methodValue)
+			if err != nil {
+				return err
+			}
+			if yes && method == "" {
+				return fmt.Errorf("mail: --yes requires --method")
+			}
+			svc, err := mailService(cmd)
+			if err != nil {
+				return err
+			}
+			preview, err := svc.PreviewUnsubscribe(cmd.Context(), folder, uid, method)
+			if err != nil {
+				return friendlyMailError(err)
+			}
+			if !apply && !yes {
+				return emit(cmd, humanUnsubscribePreview(preview), preview)
+			}
+			if apply && !yes {
+				if err := confirmUnsubscribe(cmd, preview); err != nil {
+					return err
+				}
+			}
+			result, err := svc.ExecuteUnsubscribe(cmd.Context(), folder, uid, method)
+			if err != nil {
+				return friendlyMailError(err)
+			}
+			return emit(cmd, humanUnsubscribeResult(result), result)
+		},
+	}
+	cmd.Flags().StringVar(&folder, "folder", "INBOX", "mail folder")
+	cmd.Flags().StringVar(&methodValue, "method", "", "select method: https-post, https-get, or mailto")
+	cmd.Flags().BoolVar(&apply, "apply", false, "execute the selected unsubscribe action")
+	cmd.Flags().BoolVar(&yes, "yes", false, "execute without interactive confirmation")
+	return cmd
+}
+
 func addMailQueryFlags(cmd *cobra.Command, q *mail.Query, search bool) {
 	cmd.Flags().StringVar(&q.Folder, "folder", "INBOX", "mail folder")
 	cmd.Flags().Uint32Var(&q.Limit, "limit", 20, "maximum messages to return")
@@ -226,6 +280,21 @@ func parseUID(value string) (uint32, error) {
 	return uint32(uid), nil
 }
 
+func parseUnsubscribeMethod(value string) (mail.UnsubscribeMethod, error) {
+	switch value {
+	case "":
+		return "", nil
+	case string(mail.UnsubscribeHTTPSPost):
+		return mail.UnsubscribeHTTPSPost, nil
+	case string(mail.UnsubscribeHTTPSGet):
+		return mail.UnsubscribeHTTPSGet, nil
+	case string(mail.UnsubscribeMailto):
+		return mail.UnsubscribeMailto, nil
+	default:
+		return "", fmt.Errorf("mail: --method must be https-post, https-get, or mailto")
+	}
+}
+
 func humanMessages(msgs []mail.Message) string {
 	if len(msgs) == 0 {
 		return "No messages"
@@ -253,7 +322,47 @@ func humanMessage(msg mail.Message) string {
 	if len(msg.Attachments) > 0 {
 		line += fmt.Sprintf(" attachments=%d", len(msg.Attachments))
 	}
+	if len(msg.Unsubscribe) > 0 {
+		line += fmt.Sprintf(" unsubscribe_options=%d", len(msg.Unsubscribe))
+	}
 	return line
+}
+
+func humanUnsubscribePreview(preview *mail.UnsubscribePreview) string {
+	if preview == nil || len(preview.Options) == 0 {
+		return "No unsubscribe options found"
+	}
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("Unsubscribe options for %s/%d:\n", preview.Folder, preview.UID))
+	for i, option := range preview.Options {
+		marker := " "
+		if preview.Selected != nil && option.Method == preview.Selected.Method && option.URI == preview.Selected.URI {
+			marker = "*"
+		}
+		b.WriteString(fmt.Sprintf("%s %d. %s %s", marker, i+1, option.Method, option.URI))
+		if option.RequiresSMTP {
+			b.WriteString(" requires_smtp=true")
+		}
+		if option.OneClick {
+			b.WriteString(" one_click=true")
+		}
+		b.WriteByte('\n')
+	}
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func humanUnsubscribeResult(result *mail.UnsubscribeResult) string {
+	if result == nil {
+		return "Unsubscribe action completed"
+	}
+	switch result.Method {
+	case mail.UnsubscribeHTTPSPost, mail.UnsubscribeHTTPSGet:
+		return fmt.Sprintf("Unsubscribe %s completed for %s with HTTP %d", result.Method, result.URI, result.HTTPStatus)
+	case mail.UnsubscribeMailto:
+		return fmt.Sprintf("Unsubscribe mail sent to %s", result.URI)
+	default:
+		return "Unsubscribe action completed"
+	}
 }
 
 func confirmSend(cmd *cobra.Command, opts mail.SendOptions) error {
@@ -279,6 +388,29 @@ func confirmSend(cmd *cobra.Command, opts mail.SendOptions) error {
 	answer := strings.ToLower(strings.TrimSpace(line))
 	if answer != "y" && answer != "yes" {
 		return errors.New("mail: send cancelled")
+	}
+	return nil
+}
+
+func confirmUnsubscribe(cmd *cobra.Command, preview *mail.UnsubscribePreview) error {
+	cmd.Println("Mail unsubscribe preview:")
+	if preview == nil || preview.Selected == nil {
+		return errors.New("mail: no unsubscribe option selected")
+	}
+	cmd.Println("  Folder: " + preview.Folder)
+	cmd.Println(fmt.Sprintf("  UID: %d", preview.UID))
+	cmd.Println("  Method: " + string(preview.Selected.Method))
+	cmd.Println("  URI: " + preview.Selected.URI)
+	cmd.Println(fmt.Sprintf("  Requires SMTP: %t", preview.Selected.RequiresSMTP))
+	cmd.Println(fmt.Sprintf("  One-click: %t", preview.Selected.OneClick))
+	cmd.Print("Unsubscribe? [y/N] ")
+	line, err := bufio.NewReader(cmd.InOrStdin()).ReadString('\n')
+	if err != nil {
+		return err
+	}
+	answer := strings.ToLower(strings.TrimSpace(line))
+	if answer != "y" && answer != "yes" {
+		return errors.New("mail: unsubscribe cancelled")
 	}
 	return nil
 }
