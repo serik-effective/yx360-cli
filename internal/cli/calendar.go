@@ -25,6 +25,7 @@ func newCalendarCmd() *cobra.Command {
 	cmd.AddCommand(newCalendarCreateCmd())
 	cmd.AddCommand(newCalendarUpdateCmd())
 	cmd.AddCommand(newCalendarDeleteCmd())
+	cmd.AddCommand(newCalendarRoomsCmd())
 	return cmd
 }
 
@@ -79,6 +80,7 @@ func newCalendarCreateCmd() *cobra.Command {
 		event        calendar.Event
 		startValue   string
 		endValue     string
+		roomNames    []string
 		yes          bool
 		withTelemost bool
 	)
@@ -91,6 +93,14 @@ func newCalendarCreateCmd() *cobra.Command {
 			}
 			if event.Title == "" {
 				return errors.New("calendar: --title is required")
+			}
+			if len(roomNames) > 0 {
+				rooms, err := resolveCalendarRooms(roomNames)
+				if err != nil {
+					return err
+				}
+				event.Rooms = rooms
+				fillRoomLocation(&event)
 			}
 			if withTelemost {
 				if event.Description != "" {
@@ -113,7 +123,9 @@ func newCalendarCreateCmd() *cobra.Command {
 					return friendlyTelemostError(err)
 				}
 				linkText := "Telemost: " + conference.JoinURL
-				event.Location = conference.JoinURL
+				if event.Location == "" && len(event.Rooms) == 0 {
+					event.Location = conference.JoinURL
+				}
 				event.URL = conference.JoinURL
 				event.Description = strings.TrimSpace(strings.ReplaceAll(event.Description, "Telemost link will be created during apply.", linkText))
 			}
@@ -128,7 +140,7 @@ func newCalendarCreateCmd() *cobra.Command {
 			return emit(cmd, "Created calendar event "+created.Href, created)
 		},
 	}
-	addCalendarEventFlags(cmd, &event, &startValue, &endValue)
+	addCalendarEventFlags(cmd, &event, &startValue, &endValue, &roomNames)
 	cmd.Flags().BoolVar(&withTelemost, "telemost", false, "create and attach a Telemost link")
 	cmd.Flags().BoolVar(&yes, "yes", false, "create without interactive confirmation")
 	return cmd
@@ -139,6 +151,7 @@ func newCalendarUpdateCmd() *cobra.Command {
 		patch      calendar.Event
 		startValue string
 		endValue   string
+		roomNames  []string
 		yes        bool
 	)
 	cmd := &cobra.Command{
@@ -148,6 +161,14 @@ func newCalendarUpdateCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := fillEventTimes(&patch, startValue, endValue, false); err != nil {
 				return err
+			}
+			if len(roomNames) > 0 {
+				rooms, err := resolveCalendarRooms(roomNames)
+				if err != nil {
+					return err
+				}
+				patch.Rooms = rooms
+				fillRoomLocation(&patch)
 			}
 			if !yes {
 				if err := confirmCalendarMutation(cmd, "Update calendar event?", patch, false); err != nil {
@@ -165,8 +186,101 @@ func newCalendarUpdateCmd() *cobra.Command {
 			return emit(cmd, "Updated calendar event "+updated.Href, updated)
 		},
 	}
-	addCalendarEventFlags(cmd, &patch, &startValue, &endValue)
+	addCalendarEventFlags(cmd, &patch, &startValue, &endValue, &roomNames)
 	cmd.Flags().BoolVar(&yes, "yes", false, "update without interactive confirmation")
+	return cmd
+}
+
+func newCalendarRoomsCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "rooms",
+		Short: "Manage local calendar room aliases",
+	}
+	cmd.AddCommand(newCalendarRoomsListCmd())
+	cmd.AddCommand(newCalendarRoomsAddCmd())
+	cmd.AddCommand(newCalendarRoomsDiscoverCmd())
+	return cmd
+}
+
+func newCalendarRoomsListCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "list",
+		Short: "List locally known calendar room aliases",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			registry, err := calendar.NewRoomRegistry()
+			if err != nil {
+				return err
+			}
+			rooms, err := registry.List()
+			if err != nil {
+				return err
+			}
+			return emit(cmd, humanRoomMappings(rooms), rooms)
+		},
+	}
+	return cmd
+}
+
+func newCalendarRoomsAddCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "add <name> <address>",
+		Short: "Add or override a local calendar room alias",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			registry, err := calendar.NewRoomRegistry()
+			if err != nil {
+				return err
+			}
+			room := calendar.RoomMapping{Name: args[0]}
+			if strings.HasPrefix(strings.ToLower(args[1]), "mailto:") {
+				room.URI = args[1]
+			} else {
+				room.Email = args[1]
+			}
+			if err := registry.Add(room); err != nil {
+				return err
+			}
+			rooms, err := registry.List()
+			if err != nil {
+				return err
+			}
+			return emit(cmd, "Saved calendar room "+args[0], rooms)
+		},
+	}
+	return cmd
+}
+
+func newCalendarRoomsDiscoverCmd() *cobra.Command {
+	var from, to string
+	cmd := &cobra.Command{
+		Use:   "discover",
+		Short: "Discover room aliases from existing calendar events",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			q, err := parseCalendarQuery(from, to)
+			if err != nil {
+				return err
+			}
+			svc, err := calendarService(cmd)
+			if err != nil {
+				return err
+			}
+			events, err := svc.List(cmd.Context(), q)
+			if err != nil {
+				return friendlyCalendarError(err)
+			}
+			registry, err := calendar.NewRoomRegistry()
+			if err != nil {
+				return err
+			}
+			rooms, err := registry.MergeDiscovered(events)
+			if err != nil {
+				return err
+			}
+			return emit(cmd, humanRoomMappings(rooms), rooms)
+		},
+	}
+	cmd.Flags().StringVar(&from, "from", "", "start time (RFC3339 or YYYY-MM-DD)")
+	cmd.Flags().StringVar(&to, "to", "", "end time (RFC3339 or YYYY-MM-DD)")
 	return cmd
 }
 
@@ -238,13 +352,37 @@ func newTelemostCreateCmd() *cobra.Command {
 	return cmd
 }
 
-func addCalendarEventFlags(cmd *cobra.Command, event *calendar.Event, startValue, endValue *string) {
+func addCalendarEventFlags(cmd *cobra.Command, event *calendar.Event, startValue, endValue *string, roomNames *[]string) {
 	cmd.Flags().StringVar(&event.Title, "title", "", "event title")
 	cmd.Flags().StringVar(startValue, "starts-at", "", "start time (RFC3339)")
 	cmd.Flags().StringVar(endValue, "ends-at", "", "end time (RFC3339)")
 	cmd.Flags().StringVar(&event.Description, "description", "", "event description")
 	cmd.Flags().StringVar(&event.Location, "location", "", "event location")
 	cmd.Flags().StringArrayVar(&event.Attendees, "attendee", nil, "attendee email; repeatable")
+	cmd.Flags().StringArrayVar(roomNames, "room", nil, "book room alias from the local room registry; repeatable")
+}
+
+func resolveCalendarRooms(names []string) ([]calendar.Room, error) {
+	registry, err := calendar.NewRoomRegistry()
+	if err != nil {
+		return nil, err
+	}
+	rooms := make([]calendar.Room, 0, len(names))
+	for _, name := range names {
+		room, err := registry.Resolve(name)
+		if err != nil {
+			return nil, err
+		}
+		rooms = append(rooms, room)
+	}
+	return rooms, nil
+}
+
+func fillRoomLocation(event *calendar.Event) {
+	if event.Location != "" || len(event.Rooms) == 0 {
+		return
+	}
+	event.Location = strings.Join(roomNames(event.Rooms), ", ")
 }
 
 func fillEventTimes(event *calendar.Event, startValue, endValue string, required bool) error {
@@ -366,10 +504,69 @@ func confirmCalendarMutation(cmd *cobra.Command, title string, event calendar.Ev
 	if len(event.Attendees) > 0 {
 		cmd.Println("  Attendees: " + strings.Join(event.Attendees, ","))
 	}
+	if len(event.Rooms) > 0 {
+		cmd.Println("  Rooms: " + strings.Join(roomLabels(event.Rooms), ","))
+	}
+	if event.Location != "" {
+		cmd.Println("  Location: " + event.Location)
+	}
+	if event.URL != "" {
+		cmd.Println("  URL: " + event.URL)
+	}
 	if telemost {
 		cmd.Println("  Telemost: create link")
 	}
 	return confirmPrompt(cmd, "Continue?")
+}
+
+func humanRoomMappings(rooms []calendar.RoomMapping) string {
+	if len(rooms) == 0 {
+		return "No calendar rooms"
+	}
+	var b strings.Builder
+	for _, room := range rooms {
+		address := room.Email
+		if address == "" {
+			address = room.URI
+		}
+		b.WriteString(room.Name)
+		b.WriteString(" ")
+		b.WriteString(address)
+		b.WriteByte('\n')
+	}
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func roomLabels(rooms []calendar.Room) []string {
+	labels := make([]string, 0, len(rooms))
+	for _, room := range rooms {
+		label := room.Name
+		if label == "" {
+			label = room.Alias
+		}
+		if room.Email != "" {
+			label += " <" + room.Email + ">"
+		}
+		labels = append(labels, label)
+	}
+	return labels
+}
+
+func roomNames(rooms []calendar.Room) []string {
+	names := make([]string, 0, len(rooms))
+	for _, room := range rooms {
+		name := room.Name
+		if name == "" {
+			name = room.Alias
+		}
+		if name == "" {
+			name = room.Email
+		}
+		if name != "" {
+			names = append(names, name)
+		}
+	}
+	return names
 }
 
 func confirmPrompt(cmd *cobra.Command, prompt string) error {

@@ -15,6 +15,7 @@
 - `yx360 mail send` — отправка письма через SMTP.
 - `yx360 mail unsubscribe` — предпросмотр и подтвержденная отписка по заголовкам `List-Unsubscribe`.
 - `yx360 calendar list/read/create/update/delete` — работа с событиями календаря.
+- `yx360 calendar rooms list/add/discover` — локальный справочник переговорок для бронирования через Calendar.
 - `yx360 telemost create` — создание Telemost-ссылки.
 - `yx360 login --forms` — вход с правами на чтение и запись форм.
 - `yx360 forms responses <survey-id>` — ответы на форму.
@@ -113,9 +114,13 @@ export YX360_FORMS_ORG_ID=<org-id>
 ```bash
 ./bin/yx360 calendar list --from 2026-06-20 --to 2026-06-21
 ./bin/yx360 calendar read <event-href>
+./bin/yx360 calendar rooms discover --from 2026-01-01 --to 2026-12-31
+./bin/yx360 calendar rooms list
+./bin/yx360 calendar rooms add Sun sun@effective.band
 ./bin/yx360 calendar create --title "Встреча" --starts-at 2026-06-22T09:00:00+06:00 --ends-at 2026-06-22T09:30:00+06:00
+./bin/yx360 calendar create --title "Встреча" --starts-at 2026-06-22T09:00:00+06:00 --ends-at 2026-06-22T09:30:00+06:00 --room Sun
 ./bin/yx360 calendar create --title "Созвон" --starts-at 2026-06-22T10:00:00+06:00 --ends-at 2026-06-22T10:30:00+06:00 --telemost
-./bin/yx360 calendar update <event-href> --title "Новое название"
+./bin/yx360 calendar update <event-href> --title "Новое название" --room Sun
 ./bin/yx360 calendar delete <event-href>
 ./bin/yx360 telemost create
 ```
@@ -123,6 +128,8 @@ export YX360_FORMS_ORG_ID=<org-id>
 `event-href` — это `href` из JSON-ответа `calendar list` или `calendar create`.
 
 Создание, изменение и удаление событий спрашивают подтверждение. `calendar create --telemost` сначала создает Telemost-ссылку, потом записывает ее в событие календаря.
+
+`--room` бронирует переговорку через `ATTENDEE;CUTYPE=ROOM` из локального справочника. `--location` остается только отображаемым текстом места и сам по себе не бронирует комнату. Справочник хранится в пользовательском config-dir в JSON-файле с правами `0600`; путь можно переопределить через `YX360_CONFIG_HOME`. Это не секреты, но локальное состояние пользователя. `calendar rooms discover` наполняет справочник из уже существующих событий, где Яндекс вернул `CUTYPE=ROOM` или `CUTYPE=RESOURCE`; комнаты, которых не было в просмотренном диапазоне, нужно добавить вручную через `calendar rooms add`.
 
 ## Формы
 
@@ -169,6 +176,7 @@ done
 - Команды «список всех форм» нет — у API Форм нет документированного эндпоинта перечисления, `survey-id` передается явно.
 - `forms questions add` пока умеет только вопрос-оценку (radio 1..N); другие типы вопросов и удаление вопросов не реализованы.
 - Изменение события не умеет намеренно очищать строковое поле в пустое значение: пустой флаг трактуется как "не менять".
+- Бронирование переговорок не делает Directory/org lookup и не ищет свободные слоты. CLI использует только локальный справочник комнат и статус, который вернет Calendar.
 - Telemost-ссылку можно создать, но отмена/удаление конференции через официальный API пока не подтверждена.
 - OpenClaw пока отмечен как docs-compatible, но отдельный executable smoke для адаптера `yx360` в OpenClaw не запускался.
 
