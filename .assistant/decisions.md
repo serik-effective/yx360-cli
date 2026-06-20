@@ -110,3 +110,45 @@
 **Source:** `swarm-report/calendar-telemost-plan-2026-06-20.md` and `swarm-report/calendar-telemost-implementation-2026-06-20.md`.
 **Closes:** none.
 **Raises:** OQ-011, OQ-012, OQ-013.
+
+---
+
+## D-010 — Yandex Forms surface added (responses + gated create/publish), live-unverified
+**Date:** 2026-06-20
+**Status:** accepted
+**Decision:** `yx360` gains a Forms surface through the documented Yandex Forms API (`https://api.forms.yandex.net`, `Authorization: OAuth <token>` + `X-Org-Id`, IPv4 per D-006). Commands: `forms responses <survey-id>` (read, ungated, paginated), and `forms create --title` / `forms publish <survey-id>` / `forms unpublish <survey-id>` (externally-visible writes, human-gated with preview + non-default `--yes`, per ANTI-2). Auth uses a **separate** `forms` credential profile and OAuth app (`YX360_FORMS_CLIENT_ID`) with scopes `forms:read` + `forms:write`, plus `YX360_FORMS_ORG_ID` for the `X-Org-Id` header; `login --forms` rejects mixing with mail/calendar scopes (D-009 pattern, now 3-way). Refresh stays unimplemented; re-auth at expiry (D-004). Scope decision: Option B (read + gated write) per owner.
+**Why now:** Owner has a Yandex 360 for Business org (the Forms API is Business-org-only; personal accounts are excluded) and provisioned `YX360_FORMS_CLIENT_ID` + `YX360_FORMS_ORG_ID`, unblocking the consilium's B-1 feasibility gate. Built on branch `feat/yandex-forms-get-create-publish` in an isolated git worktree to stay clear of in-progress calendar-room-booking work.
+**Verification status:** build/vet/`go test ./...` green, including a `forms` unit test (scope guard, org-id guard, 401→reauth, tolerant decode). **Live API smoke NOT yet run** — endpoint paths and response JSON come from Yandex docs and are flagged live-unverified (C-1); `forms` JSON structs decode tolerantly and may need adjustment after the first real call. Not "done" per ANTI-11 until the live smoke passes.
+**Alternatives rejected:**
+- Personal-account Forms: impossible — documented Forms API is Yandex 360 for Business-only.
+- `forms list` / enumerate-all-surveys: not built — no documented enumeration endpoint (C-1/R3); `survey_id` is user-supplied.
+- Read-only v1 only (Option A): owner chose Option B (include gated create/publish) since the `forms:write` scope was already provisioned.
+- Private forms.yandex.ru web-surface scraping: unnecessary — documented REST API covers the core path.
+- Question authoring in `forms create`: out of scope v1 — `create` sets only the title (empty survey).
+**Source:** `swarm-report/yandex-forms-get-create-publish-plan-2026-06-20.md`, `swarm-report/yandex-forms-get-create-publish-implementation-2026-06-20.md`. Consilium agents architect/skeptic/researcher/reviewer; exec agent `a8fbeeac416c59114`. Forms credentials handled only via untracked `.env`.
+**Note:** D-010 may collide with a parallel D-010 on the calendar-room-booking branch; resolve by renumbering at merge.
+**Closes:** plan OQ-NEW-A (org-account feasibility — confirmed). Partially addresses OQ-INV-1 (first org-scoped surface ships, but gated by the user's own Forms permission + `X-Org-Id`, not full Directory admin).
+**Raises:** OQ-014 (Forms list-all endpoint), OQ-015 (Forms live verification), OQ-016 (Forms question authoring). Reinforces OQ-011 (now a third un-cleared credential profile).
+
+---
+
+## D-011 — Forms surface live-verified; API contract corrected; question authoring + link derivation added
+**Date:** 2026-06-20
+**Status:** accepted
+**Amends:** D-010 (its "live-unverified / C-1" caveat is now resolved). D-010 stays as-is per §8.
+**Decision:** The Forms surface is **live-verified end to end** against a real Yandex 360 for Business org (org id `7023313`, account `serik.beysenov@effective.band`): create → add 5 rating questions → publish → read submitted answers all succeeded. Live testing forced several documented-contract corrections, now in code:
+1. **Org header by id format:** numeric org id → `X-Org-Id`; non-numeric (hex) → `X-Cloud-Org-Id`. The earlier hex value failed with `Требуется организация`; the numeric `7023313` worked.
+2. **Create body field is `name`, not `title`** (`{"name": "<title>"}`).
+3. **`forms questions add <survey-id> --label --rating N`** added (OQ-016): posts an `enum`/`radio` question with items `1..N` to `POST /v1/surveys/{id}/questions/`. Live-confirmed.
+4. **Public links derived by the CLI** (the API returns none): published form `https://forms.yandex.ru/cloud/<survey_id>`, answer stats `https://forms.yandex.ru/cloud/admin/<survey_id>/answers?view=stats`. Printed by `create`/`publish` and in their JSON.
+5. **`forms responses` now surfaces the full raw answer payload** via `Answer.MarshalJSON` — real answer fields are `id` (numeric), `created`, and `data[].value`, which did not match the assumed `id`/`respondent_id`/`submitted_at`, so typed-only output dropped the data.
+6. HTTP error bodies are surfaced (`httpError`) instead of bare status codes.
+**Why now:** Owner ran the live end-to-end flow (build a 5-category event-rating form), which both proved the surface and exposed the contract mismatches above; fixing them in the same session is the ANTI-11 "feature actually works" gate.
+**Alternatives rejected:**
+- Keeping `title` in the create body: rejected — API requires `name` (HTTP 400 otherwise).
+- Sending both org headers always: rejected — pairing a numeric value with `X-Cloud-Org-Id` (or vice-versa) yields `Требуется организация`; select by format.
+- Typed-only answer decode: rejected — drops real answer content; raw passthrough preserves fidelity (field names vary).
+- Runtime org-id auto-discovery: rejected for now — no documented endpoint for a forms-scoped token; org id is a one-time operator config (`YX360_FORMS_ORG_ID`), with a user prompt as the fallback (future work).
+**Source:** live session 2026-06-20 (survey `6a368226969f14081ef9ece7`, 1 submission read: Контент=1, Спикеры=1, Организация=3, Локация=4, Нетворкинг=2); `swarm-report/yandex-forms-get-create-publish-implementation-2026-06-20.md`. Branch `feat/yandex-forms-get-create-publish`. Forms credentials only via untracked `.env`.
+**Closes:** OQ-015 (Forms live verification — done), OQ-016 (Forms question authoring — `forms questions add` shipped + live-confirmed).
+**Raises:** OQ-017 (Forms org-id auto-discovery / user-prompt fallback). OQ-014 (list-all endpoint) and OQ-011 (profile-aware logout) remain open.

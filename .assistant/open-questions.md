@@ -24,6 +24,8 @@ Softened by the OAuth decision: documented OAuth with explicit user consent is T
 
 **Update 2026-06-20:** D-009 live-verified Calendar personal-account CRUD through documented CalDAV (`calendar:all`) and Telemost conference creation through the official Telemost API (`telemost-api:conferences.create`). The open part remains org-wide Directory/admin capabilities and any future shared/delegated-calendar behavior.
 
+**Update 2026-06-20 (D-010):** First org-scoped surface shipped — the Yandex Forms API is Yandex 360 for Business-only, accessed with an `X-Org-Id` header (`YX360_FORMS_ORG_ID`). Access is gated by the authenticated user's own Forms permission rather than a separate Directory/admin grant, so it stays inside the personal-consent posture. Full org-wide Directory/admin capability remains open.
+
 ## OQ-006 — Headless / CI token storage — CLOSED by D-003 (2026-06-20)
 `zalando/go-keyring` errors when no OS secret service is present (headless Linux / CI / Docker, no D-Bus). Resolved: **flag-gated plaintext file store** (`--insecure-file-store` → `~/.config/yx360/credential.json`, mode 0600); keychain remains the default; a headless keychain error points the user at the flag. Never silent plaintext. Implemented in PR-1.
 
@@ -41,8 +43,8 @@ Resolved: read-side Mail uses `mail:imap_full`; SMTP/send uses `mail:smtp`. Both
 **Priority:** medium
 **Question:** Should `yx360 logout` clear all credential profiles by default, or expose profile-specific flags such as `--mail`, `--calendar-telemost`, and `--all`?
 **Why it matters:** D-009 added separate `mail` and `calendar-telemost` credential profiles, while the existing logout command still clears only the legacy default credential slot.
-**Linked:** D-009; `swarm-report/calendar-telemost-implementation-2026-06-20.md`
-**Status:** open; decide before relying on logout for operational cleanup.
+**Linked:** D-009, D-010; `swarm-report/calendar-telemost-implementation-2026-06-20.md`
+**Status:** open; decide before relying on logout for operational cleanup. **Update 2026-06-20 (D-010):** now a *third* un-cleared profile (`forms`) exists alongside `mail` and `calendar-telemost`; the gap widened.
 
 ## OQ-012 — Calendar event identifiers and field clearing
 **Priority:** low
@@ -57,3 +59,31 @@ Resolved: read-side Mail uses `mail:imap_full`; SMTP/send uses `mail:smtp`. Both
 **Why it matters:** D-009 can create Telemost links, including links attached to Calendar events, but smoke-test and partial-failure links may remain live because no official cleanup endpoint was verified.
 **Linked:** D-009; `swarm-report/calendar-telemost-plan-2026-06-20.md`; `swarm-report/calendar-telemost-implementation-2026-06-20.md`
 **Status:** open; research only when cleanup becomes necessary.
+
+## OQ-014 — Forms list-all endpoint
+**Priority:** medium
+**Question:** Does the Yandex Forms API expose a documented endpoint to enumerate the forms a user owns/can access, or must `survey_id` always be supplied out-of-band?
+**Why it matters:** D-010 shipped without a `forms list` command because no enumeration endpoint was found in the documented examples; agents and users must obtain `survey_id` from the web UI. If an endpoint exists, `forms list` should be added.
+**Linked:** D-010; `swarm-report/yandex-forms-get-create-publish-plan-2026-06-20.md`
+**Status:** open; re-verify against the full `ru/api-ref` reference before adding `forms list`.
+
+## OQ-015 — Forms live API verification
+**Priority:** high
+**Question:** Do the Forms endpoint paths, the `X-Org-Id` requirement, the exact `forms:read`/`forms:write` scope strings, and the response JSON shapes match the real Yandex Forms API?
+**Why it matters:** D-010 is build/unit-verified only; all Forms request/response shapes come from Yandex docs (live-unverified, C-1). The feature is not "done" per ANTI-11 until a live smoke (`login --forms` → `forms responses <real_survey_id>` → `forms create`/`publish`) passes; structs may need adjustment.
+**Linked:** D-010, D-011; `swarm-report/yandex-forms-get-create-publish-implementation-2026-06-20.md`
+**Status:** **closed by D-011 on 2026-06-20.** Live end-to-end run (org `7023313`) passed: create→add-questions→publish→read-answers. Contract corrections folded in (org header by id format, create body `name`, raw answer passthrough). Scopes `forms:read`/`forms:write` confirmed live.
+
+## OQ-016 — Forms question authoring
+**Priority:** low
+**Question:** Should `forms create` support adding questions (e.g. rating/choice fields), or stay title-only with question authoring left to the web UI?
+**Why it matters:** D-010's `forms create` sets only the survey title and produces an empty form; building a usable survey (e.g. multi-category rating) currently requires the web editor. The documented API has a `POST /surveys/{id}/questions/` endpoint that could back a `forms questions add` command.
+**Linked:** D-010, D-011; `swarm-report/yandex-forms-get-create-publish-plan-2026-06-20.md`
+**Status:** **closed by D-011 on 2026-06-20.** `forms questions add <survey-id> --label --rating N` shipped and live-confirmed (enum/radio items 1..N via `POST /v1/surveys/{id}/questions/`). `forms create` stays title-only by design; questions are a separate command.
+
+## OQ-017 — Forms org-id auto-discovery / user-prompt fallback
+**Priority:** medium
+**Question:** Should the CLI auto-discover the Forms org id, or interactively prompt for it when `YX360_FORMS_ORG_ID` is unset/invalid, instead of failing?
+**Why it matters:** The Forms API requires an org id, but no documented endpoint returns it for a `forms:*`-scoped token; today it is operator-configured env (`YX360_FORMS_ORG_ID`). Live testing burned several tries on wrong values (a uid, a hex id) before the numeric `7023313` worked, with only raw API errors as feedback. A prompt-on-missing fallback (owner-requested) would improve out-of-box UX; true runtime auto-discovery likely needs a different API/scope and a surface consilium.
+**Linked:** D-011; OQ-014
+**Status:** open; decide prompt-fallback (cheap) vs auto-discovery (needs research) before broader rollout.
