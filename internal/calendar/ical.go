@@ -19,6 +19,8 @@ type Event struct {
 	StartsAt    time.Time `json:"starts_at"`
 	EndsAt      time.Time `json:"ends_at"`
 	Attendees   []string  `json:"attendees,omitempty"`
+
+	recurrenceRule string
 }
 
 func parseEvent(href, etag, data string) Event {
@@ -44,11 +46,142 @@ func parseEvent(href, etag, data string) Event {
 			event.StartsAt = parseICSTime(value)
 		case "DTEND":
 			event.EndsAt = parseICSTime(value)
+		case "RRULE":
+			event.recurrenceRule = value
 		case "ATTENDEE":
 			event.Attendees = append(event.Attendees, strings.TrimPrefix(value, "mailto:"))
 		}
 	}
 	return event
+}
+
+func (event Event) occurrenceIn(from, to time.Time) Event {
+	if event.StartsAt.IsZero() || event.EndsAt.IsZero() {
+		return event
+	}
+	if event.StartsAt.Before(to) && event.EndsAt.After(from) {
+		return event
+	}
+	if event.recurrenceRule == "" {
+		if event.isRecurringInstance() {
+			return event.recurringInstanceOccurrenceIn(from, to)
+		}
+		return event
+	}
+
+	nextStart, ok := nextRecurringStart(event.StartsAt, from, to, parseRRule(event.recurrenceRule))
+	if !ok {
+		if event.isRecurringInstance() {
+			return event.recurringInstanceOccurrenceIn(from, to)
+		}
+		return event
+	}
+	duration := event.EndsAt.Sub(event.StartsAt)
+	event.StartsAt = nextStart
+	event.EndsAt = nextStart.Add(duration)
+	return event
+}
+
+func (event Event) isRecurringInstance() bool {
+	return strings.Contains(event.UID, "_R") || strings.Contains(event.Href, "_R")
+}
+
+func (event Event) recurringInstanceOccurrenceIn(from, to time.Time) Event {
+	nextStart, ok := nextWeeklyStart(event.StartsAt, from, to, 1, map[time.Weekday]bool{event.StartsAt.Weekday(): true})
+	if !ok {
+		return event
+	}
+	duration := event.EndsAt.Sub(event.StartsAt)
+	event.StartsAt = nextStart
+	event.EndsAt = nextStart.Add(duration)
+	return event
+}
+
+func parseRRule(rule string) map[string]string {
+	parts := strings.Split(rule, ";")
+	parsed := make(map[string]string, len(parts))
+	for _, part := range parts {
+		key, value, ok := strings.Cut(part, "=")
+		if ok {
+			parsed[strings.ToUpper(key)] = strings.ToUpper(value)
+		}
+	}
+	return parsed
+}
+
+func nextRecurringStart(start, from, to time.Time, rule map[string]string) (time.Time, bool) {
+	interval := recurrenceInterval(rule["INTERVAL"])
+	switch rule["FREQ"] {
+	case "DAILY":
+		return nextDailyStart(start, from, to, interval)
+	case "WEEKLY":
+		return nextWeeklyStart(start, from, to, interval, recurrenceWeekdays(rule["BYDAY"], start.Weekday()))
+	case "MONTHLY":
+		return nextMonthlyStart(start, from, to, interval)
+	default:
+		return time.Time{}, false
+	}
+}
+
+func recurrenceInterval(value string) int {
+	var interval int
+	if _, err := fmt.Sscanf(value, "%d", &interval); err != nil || interval < 1 {
+		return 1
+	}
+	return interval
+}
+
+func recurrenceWeekdays(value string, fallback time.Weekday) map[time.Weekday]bool {
+	if value == "" {
+		return map[time.Weekday]bool{fallback: true}
+	}
+	days := map[string]time.Weekday{
+		"SU": time.Sunday,
+		"MO": time.Monday,
+		"TU": time.Tuesday,
+		"WE": time.Wednesday,
+		"TH": time.Thursday,
+		"FR": time.Friday,
+		"SA": time.Saturday,
+	}
+	weekdays := make(map[time.Weekday]bool)
+	for _, part := range strings.Split(value, ",") {
+		if day, ok := days[part]; ok {
+			weekdays[day] = true
+		}
+	}
+	if len(weekdays) == 0 {
+		weekdays[fallback] = true
+	}
+	return weekdays
+}
+
+func nextDailyStart(start, from, to time.Time, interval int) (time.Time, bool) {
+	for candidate := start; candidate.Before(to); candidate = candidate.AddDate(0, 0, interval) {
+		if !candidate.Before(from) {
+			return candidate, true
+		}
+	}
+	return time.Time{}, false
+}
+
+func nextWeeklyStart(start, from, to time.Time, interval int, weekdays map[time.Weekday]bool) (time.Time, bool) {
+	for candidate := start; candidate.Before(to); candidate = candidate.AddDate(0, 0, 1) {
+		weeks := int(candidate.Sub(start).Hours() / 24 / 7)
+		if weeks%interval == 0 && weekdays[candidate.Weekday()] && !candidate.Before(from) {
+			return candidate, true
+		}
+	}
+	return time.Time{}, false
+}
+
+func nextMonthlyStart(start, from, to time.Time, interval int) (time.Time, bool) {
+	for candidate := start; candidate.Before(to); candidate = candidate.AddDate(0, interval, 0) {
+		if !candidate.Before(from) {
+			return candidate, true
+		}
+	}
+	return time.Time{}, false
 }
 
 func buildICS(event Event) string {

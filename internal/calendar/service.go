@@ -67,6 +67,9 @@ func (s *Service) List(ctx context.Context, q Query) ([]Event, error) {
 	if err != nil {
 		return nil, err
 	}
+	for i := range events {
+		events[i] = events[i].occurrenceIn(q.From, q.To)
+	}
 	return events, nil
 }
 
