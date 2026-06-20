@@ -4,14 +4,23 @@
 
 ---
 
-## OQ-001 — Lock the stack and tooling versions
-Pin `go.mod` toolchain, pick the CLI framework (`cobra` vs `urfave/cli`), and decide the distribution path (GoReleaser + Homebrew tap vs manual formula). Resolve during the first `/pre-feature`.
+## OQ-001 — Lock the stack and tooling versions — CLOSED by D-003 (2026-06-20)
+Resolved: `go 1.26` + `toolchain go1.26.4`; cobra; `golang.org/x/oauth2`; `zalando/go-keyring`; GoReleaser + Homebrew tap (deferred). See D-003.
 
-## OQ-002 — Token-interception mechanism
-How is the Yandex 360 session token captured at `yx360 login`? OS-native webview vs embedded/headless browser, and how the local webhook/callback receives the token. Affects the security posture (token at rest, lifetime).
+## OQ-002 — Token-interception mechanism — CLOSED (mooted by D-002, 2026-06-20)
+Mooted: the project no longer intercepts a token. Login uses documented OAuth (loopback PKCE → device flow → manual paste). The credential-type / webview-vs-headless / webhook questions no longer apply. See D-002.
+
+## OQ-004 — Interception vs documented OAuth — RESOLVED (D-002, 2026-06-20)
+Resolved in favour of documented OAuth. See D-002.
+
+## OQ-005 — Captured-credential type — MOOTED (D-002, 2026-06-20)
+No interception ⇒ no captured session credential to classify. The OAuth token is the credential (12-month personal-account access token + refresh token).
 
 ## OQ-003 — Web vs mobile reverse-engineering boundary
 Vision starts with the web surface and escalates to mobile only if needed. Define the trigger: which capabilities justify moving to APK/Frida analysis of the mobile app vs staying on the web surface.
 
-## OQ-INV-1 — Authorization / ToS posture (confirm before shipping)
-Reverse-engineering private Yandex 360 endpoints and intercepting session tokens — confirm the legal/authorization stance (own-account use only? ToS boundaries?). This gates anything user-facing. Owner to state the authorization context explicitly.
+## OQ-INV-1 — Authorization / ToS posture (NARROWED by D-002, 2026-06-20)
+Softened by the OAuth decision: documented OAuth with explicit user consent is ToS-defensible for **personal-account** scopes (Mail/Disk/Telemost self-data). Remaining open: **org / Directory** scopes require a Yandex 360 organization + admin-enabled service application + written user consent — confirm before shipping any org-wide capability.
+
+## OQ-006 — Headless / CI token storage — CLOSED by D-003 (2026-06-20)
+`zalando/go-keyring` errors when no OS secret service is present (headless Linux / CI / Docker, no D-Bus). Resolved: **flag-gated plaintext file store** (`--insecure-file-store` → `~/.config/yx360/credential.json`, mode 0600); keychain remains the default; a headless keychain error points the user at the flag. Never silent plaintext. Implemented in PR-1.

@@ -1,0 +1,10 @@
+# secrets — never commit (§12)
+.env
+.env.*
+
+# build artifacts
+/bin/
+/yx360
+
+# OS
+.DS_Store
