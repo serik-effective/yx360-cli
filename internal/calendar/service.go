@@ -85,6 +85,7 @@ func (s *Service) Create(ctx context.Context, event Event) (*Event, error) {
 	if event.UID == "" {
 		event.UID = newUID()
 	}
+	s.fillOrganizer(&event)
 	calendarURL, err := s.primaryCalendarURL(ctx)
 	if err != nil {
 		return nil, err
@@ -128,6 +129,13 @@ func (s *Service) Update(ctx context.Context, href string, patch Event) (*Event,
 	if patch.Attendees != nil {
 		updated.Attendees = patch.Attendees
 	}
+	if patch.Rooms != nil {
+		updated.Rooms = patch.Rooms
+	}
+	if patch.Resources != nil {
+		updated.Resources = patch.Resources
+	}
+	s.fillOrganizer(&updated)
 	resp, err := s.request(ctx, http.MethodPut, absoluteURL(s.cfg.BaseURL, current.Href), "", "text/calendar; charset=utf-8", strings.NewReader(buildICS(updated)), current.ETag)
 	if err != nil {
 		return nil, err
@@ -153,6 +161,20 @@ func (s *Service) Delete(ctx context.Context, href string) (*Event, error) {
 		return nil, fmt.Errorf("calendar: delete failed: HTTP %d", resp.StatusCode)
 	}
 	return event, nil
+}
+
+func (s *Service) fillOrganizer(event *Event) {
+	if event.Organizer != nil || s.cred == nil || s.cred.Account == "" {
+		return
+	}
+	if len(event.Rooms) == 0 && len(event.Resources) == 0 {
+		return
+	}
+	event.Organizer = &Participant{
+		Email: s.cred.Account,
+		URI:   "mailto:" + s.cred.Account,
+		Name:  s.cred.Account,
+	}
 }
 
 func (s *Service) primaryCalendarURL(ctx context.Context) (string, error) {

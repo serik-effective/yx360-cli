@@ -28,9 +28,13 @@ yx360 --json mail read <uid>
 yx360 --json mail send --to user@example.com --subject "Subject" --body "Body" --yes
 yx360 --json mail unsubscribe <uid>
 yx360 --json calendar list --from 2026-06-20 --to 2026-06-21
+yx360 --json calendar rooms discover --from 2026-01-01 --to 2026-12-31
+yx360 --json calendar rooms list
+yx360 --json calendar rooms add Sun sun@effective.band
 yx360 --json calendar create --title "Meeting" --starts-at 2026-06-22T09:00:00+06:00 --ends-at 2026-06-22T09:30:00+06:00 --yes
+yx360 --json calendar create --title "Meeting" --starts-at 2026-06-22T09:00:00+06:00 --ends-at 2026-06-22T09:30:00+06:00 --room Sun --yes
 yx360 --json calendar create --title "Call" --starts-at 2026-06-22T10:00:00+06:00 --ends-at 2026-06-22T10:30:00+06:00 --telemost --yes
-yx360 --json calendar update <event-href> --title "New title" --yes
+yx360 --json calendar update <event-href> --title "New title" --room Sun --yes
 yx360 --json calendar delete <event-href> --yes
 yx360 --json telemost create --yes
 ```
@@ -44,8 +48,9 @@ Current JSON output is pretty-printed JSON on stdout. The shape is command-speci
 - `mail attachment`: `path`.
 - `mail send`: `status`, `from`, `recipients`, `subject`.
 - `mail unsubscribe`: preview has `uid`, `folder`, `options`, and optional `selected`; apply result has `status`, `uid`, `folder`, `method`, `uri`, optional `http_status`, and optional `mail`.
-- `calendar list`: array of events. Event fields include `id`, `href`, optional `etag`, `uid`, `title`, optional `description`, optional `location`, optional `url`, `starts_at`, `ends_at`, and optional `attendees`.
+- `calendar list`: array of events. Event fields include `id`, `href`, optional `etag`, `uid`, `title`, optional `description`, optional `location`, optional `url`, `starts_at`, `ends_at`, optional `attendees`, optional `participants`, optional `rooms`, and optional `resources`.
 - `calendar read/create/update/delete`: one event object with the same fields as above.
+- `calendar rooms list/discover/add`: an array of room mappings with `name`, optional `email`, optional `uri`, and optional `kind`.
 - `telemost create`: `id`, `join_url`.
 
 Agents may rely on field names listed above for the current major CLI surface. They must tolerate additional fields.
@@ -101,7 +106,13 @@ Calendar mutations and Telemost link creation are externally visible. Without `-
 
 Agents may pass `--yes` only after the user has explicitly approved the exact event title, time range, attendees, deletion target, or Telemost link creation.
 
+Agents may pass `--yes` for a room-bearing calendar create/update only after the user has explicitly approved the exact room alias and resolved room address shown by the CLI or local room registry.
+
 `calendar create --telemost` creates a Telemost conference first, then writes the returned `join_url` into the event. If Calendar creation fails after Telemost creation, the Telemost link may remain live; agents must surface that partial-failure risk.
+
+`calendar create/update --room <name>` books a room by adding a structured room attendee from the local room registry. `--location` is display-only text and does not book a room by itself. When `--telemost` and `--room` are both passed, the Telemost URL is attached as `url` and description text; the CLI does not overwrite a physical room/location with the Telemost URL.
+
+Room registry commands are local except `calendar rooms discover`, which reads Calendar events in the requested range and saves `ATTENDEE` entries with `CUTYPE=ROOM` or `CUTYPE=RESOURCE` into the user config file. `YX360_CONFIG_HOME` can override the config root for agents, tests, and sandboxed runs. Discovery is opportunistic: rooms that never appear in scanned events must be added manually with `calendar rooms add <name> <address>`.
 
 ## Calendar IDs
 
