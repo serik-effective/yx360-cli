@@ -6,5 +6,16 @@
 /bin/
 /yx360
 
+# manual login pending state (should never be in-repo)
+manual-login.json
+
 # OS
 .DS_Store
+# CocoIndex Code (ccc)
+/.cocoindex_code/
+
+# local MCP server config (machine-specific paths)
+.mcp.json
+
+# Claude session runtime artifacts
+.claude/sessions/

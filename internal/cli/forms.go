@@ -37,12 +37,13 @@ func newFormsQuestionsCmd() *cobra.Command {
 func newFormsQuestionsAddCmd() *cobra.Command {
 	var (
 		label  string
+		qType  string
 		rating int
 		yes    bool
 	)
 	cmd := &cobra.Command{
 		Use:   "add <survey-id>",
-		Short: "Add a 1..N rating question to a survey",
+		Short: "Add a question (rating|text|integer) to a survey",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if label == "" {
@@ -50,7 +51,11 @@ func newFormsQuestionsAddCmd() *cobra.Command {
 			}
 			if !yes {
 				cmd.Println("Forms add-question preview:")
-				cmd.Printf("  Survey: %s\n  Question: %s (rating 1..%d)\n", args[0], label, rating)
+				if qType == "rating" {
+					cmd.Printf("  Survey: %s\n  Question: %s (rating 1..%d)\n", args[0], label, rating)
+				} else {
+					cmd.Printf("  Survey: %s\n  Question: %s (%s)\n", args[0], label, qType)
+				}
 				if err := confirmPrompt(cmd, "Add question?"); err != nil {
 					return err
 				}
@@ -59,7 +64,7 @@ func newFormsQuestionsAddCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			result, err := svc.AddRatingQuestion(cmd.Context(), args[0], label, rating)
+			result, err := svc.AddQuestion(cmd.Context(), args[0], qType, label, rating)
 			if err != nil {
 				return friendlyFormsError(err)
 			}
@@ -67,7 +72,8 @@ func newFormsQuestionsAddCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&label, "label", "", "question text")
-	cmd.Flags().IntVar(&rating, "rating", 5, "rating scale size (1..N)")
+	cmd.Flags().StringVar(&qType, "type", "rating", "question type: rating|text|integer")
+	cmd.Flags().IntVar(&rating, "rating", 5, "rating scale size (1..N), for --type rating")
 	cmd.Flags().BoolVar(&yes, "yes", false, "add without interactive confirmation")
 	return cmd
 }

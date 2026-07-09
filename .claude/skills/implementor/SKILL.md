@@ -70,6 +70,10 @@ After all layers complete (or after a partial-layer success):
 - Run the project's verify script (lookup order: `/quickstart` SKILL output → `Makefile` `verify` target → `package.json` `scripts.verify` → project-type defaults).
 - Default per project type: typecheck + lint + unit tests + a single smoke invocation.
 - For UI changes: must include a real run (`/run` skill if present, else manual launch in the report's checklist for the user).
+- **Visual critic is MANDATORY (not optional) when the diff touches a UI surface** — any changed file matching `*.tsx` / `*.jsx` / `*.vue` / `*.svelte` / `*.swift` / `*.css` / `components/`, or a project that declares a UI surface. Before the implementor may report `status: complete`, the verify gate MUST:
+  1. Invoke an existing critic skill — `apple-design-critic` (Apple targets), or `frontend-design` / `visual-spec` / the `ui` consilium role (web). Do not hand-roll a parallel review.
+  2. Capture before/after screenshots, reusing the project's `playwright-cli` named-session path.
+  If a UI-touching diff ships with **no critic run**, `status` cannot be `complete` — write the report as `partial` and surface that the visual critic was skipped.
 
 Verify failure → DO NOT claim done. Write the report with `status: verify-failed`, list the failing command + its stderr tail, surface to user.
 

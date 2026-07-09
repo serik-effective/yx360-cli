@@ -1,83 +1,367 @@
 {
-  "harness_version": "698eb86489901cb0cd49d3c4a91643730dc5c1ea",
-  "harness_source": "git@github.com:effective-dev-os/harness.git@698eb86489901cb0cd49d3c4a91643730dc5c1ea",
+  "harness_version": "6ea46b4dd7af80cdf774f168022c3df00e1dbb26",
+  "harness_source": "git@github.com:effective-dev-os/harness.git@6ea46b4dd7af80cdf774f168022c3df00e1dbb26",
   "installed_at": "2026-06-20T05:08:17Z",
   "install_method": "skill:/setup",
   "project_type": 2,
-  "primary_stack": ["Backend/CLI"],
+  "primary_stack": [
+    "Backend/CLI"
+  ],
   "primary_language": "Go",
   "files": {
-    ".claude/agents/android.md": { "owner": "harness", "sha256": "13f930dbe7dee5fcc5bc3429153efd4ab76334970c1493adc1cc913c09e522b2" },
-    ".claude/agents/anti-bot-evasion.md": { "owner": "harness", "sha256": "bc66c21afa06d2529edb39f550299e16f31c87b9cf3674f81b518b0aa329cbeb" },
-    ".claude/agents/api.md": { "owner": "harness", "sha256": "31c1a52877f8b77c7da0aea8db0c139500c2444021c1ec5ea17e3e20f86cd9f3" },
-    ".claude/agents/apple-ci-engineer.md": { "owner": "harness", "sha256": "f2dee2f6d715719b3cda609b00220e68d6d097bff5e11782cdf211e8e37e574a" },
-    ".claude/agents/apple-platform-debugger.md": { "owner": "harness", "sha256": "d5071134098293d7e1fde72d9c875e8a72f58494b7ed47208fd005dfbe925618" },
-    ".claude/agents/architect.md": { "owner": "harness", "sha256": "d24920cc193249418956a01a8c873a07e4b438f312efa337db7a04d603140b6f" },
-    ".claude/agents/backend.md": { "owner": "harness", "sha256": "0678b3e2dd14be1fdf03e0bb1c07f8e9de5e6ceee034024982febcd2effc0ae8" },
-    ".claude/agents/devops.md": { "owner": "harness", "sha256": "725ce735335d591950d01b9fae3d3901e8787d75e65f0d37180677693e362e9f" },
-    ".claude/agents/diagnostics.md": { "owner": "harness", "sha256": "e91c0c2e5492098cf7fe9b098ee57dd498012c4d038163f586384911375c9a28" },
-    ".claude/agents/electronics.md": { "owner": "harness", "sha256": "da409e9e8754c04a9581f94b9a2d4a4694f1eee18dab1583d6dad3c6b83a986a" },
-    ".claude/agents/embedded.md": { "owner": "harness", "sha256": "70615c9ba835168dd11493d9fceb9e6db33036837de9c7718f08ed42fb2ab34e" },
-    ".claude/agents/flutter.md": { "owner": "harness", "sha256": "b83c478d97f28ecd5de44567aa3939f10ef8e0bf24ddf1683f0980c9b36436a0" },
-    ".claude/agents/frontend.md": { "owner": "harness", "sha256": "c415a6491bbb7d1636f5560a80a0b37d4533f24035ade3bd8718e15b6446e4f9" },
-    ".claude/agents/ios.md": { "owner": "harness", "sha256": "9141caabfd6ad2c37d61f4fb855942242d2c089686b271af4d89ab82794e8035" },
-    ".claude/agents/proxy-strategist.md": { "owner": "harness", "sha256": "880251338d8f38826b88ddc13ce584bf9821c93fa92f8c7285311042b0ee0746" },
-    ".claude/agents/researcher.md": { "owner": "harness", "sha256": "2452f62f0d813ecbf21da959b01e05bfface7580c892457063d8a630aab433c4" },
-    ".claude/agents/reviewer.md": { "owner": "harness", "sha256": "6b13b497e7d4d5641ca3fc5694f0341bd1d67bbe5a2068049b8b1e6ba4fbcaf5" },
-    ".claude/agents/scraping-architect.md": { "owner": "harness", "sha256": "4eef1048237bf6b7a5ea6cb76cb5a4a6f3fab2ccc282eb92204e109229c658b9" },
-    ".claude/agents/scraping-diagnostician.md": { "owner": "harness", "sha256": "b7aac1ba98e48ea73785176754f4735bb89122d187534831a5bd28a8d49f66d9" },
-    ".claude/agents/security.md": { "owner": "harness", "sha256": "b328af8d86e0835a24217ca5ff5f4c80d2f7b1de766331de09efafa3091b1b9f" },
-    ".claude/agents/skeptic.md": { "owner": "harness", "sha256": "3876c54a61b85c28bedb7b65bfddde5944fde3a0adb7e68e8569307c92c66d85" },
-    ".claude/agents/surface-scout.md": { "owner": "harness", "sha256": "af1400ccd1b97cf824dec8c69f9432017de42d0930f898ca5c0b8491f4a5687b" },
-    ".claude/agents/swiftui-architect.md": { "owner": "harness", "sha256": "b8425131f48dee73712053b00d457ff2af3131bcb34261763b64e1de531fb8f4" },
-    ".claude/agents/swiftui-design-critic.md": { "owner": "harness", "sha256": "9b2591377ea5532ac1e918ad2c196ec116f61e8df6c071ed9a5389be3607adb7" },
-    ".claude/agents/test.md": { "owner": "harness", "sha256": "0f62010ea88df89efbad760065da66a9c5e0e5bc3e4ee03a5dac7c2d17afaea5" },
-    ".claude/agents/web.md": { "owner": "harness", "sha256": "0d7aef55dd5ffbd41573879bead85fe1c0a2ebf5119cb422599e5654b7ecb3f4" },
-    ".claude/skills/anti-ai-slop-writing/SKILL.md": { "owner": "harness", "sha256": "1d230dddbc53ab54c846136954873ec113443cdca5742c80ca10e7ccc86c100b" },
-    ".claude/skills/anti-ai-slop-writing/references/banned-words.md": { "owner": "harness", "sha256": "1f099b76cf9a093cd1370cec569ab303f3bf3bbb194f5c43dd46b2ae796d25d7" },
-    ".claude/skills/apple-anim-review/SKILL.md": { "owner": "harness", "sha256": "c89a48a3df19b5e79d08ce5f27c5cd1b9b90a13b863f35c6d4aea321e2d7e8b3" },
-    ".claude/skills/apple-design-critic/SKILL.md": { "owner": "harness", "sha256": "10e7dffbb5be3160308604aa6dafa524581cda05ba35a26fa7fd45576f27433e" },
-    ".claude/skills/apple-impl/SKILL.md": { "owner": "harness", "sha256": "13667da250621ece64fbab97cd5237f65d0d5348535450525d9855ceaf3c34bb" },
-    ".claude/skills/apple-simulator-debug/SKILL.md": { "owner": "harness", "sha256": "b331c2fb4ccf4a98048c9c9deff7be1e32277907b52326864d3aecc96b5449b3" },
-    ".claude/skills/audit/SKILL.md": { "owner": "harness", "sha256": "9243b489231eb840ddbbbc5c0842790a25e24e749ad2ed8dfca4982d38b083e6" },
-    ".claude/skills/contribute/SKILL.md": { "owner": "harness", "sha256": "659dd8e19e815fb5fc825e1c3ebc5f7f6bb03a003520b8893c8ea5734cf8edbf" },
-    ".claude/skills/diagnose/SKILL.md": { "owner": "harness", "sha256": "23027555995be0ce74ce692569bcdb308500c26ca1bdba393f0e18707d5feb25" },
-    ".claude/skills/frontend-design/SKILL.md": { "owner": "harness", "sha256": "d39adf3a983de7dafc75991590d54f091755f7e4163d5a5ed085ecd719157184" },
-    ".claude/skills/implementor/SKILL.md": { "owner": "harness", "sha256": "130a1f6aacc0a0bc1fde9b38ec83929cd8611046f4e6189237cc8fac178f22d4" },
-    ".claude/skills/memory-bank-defrag/SKILL.md": { "owner": "harness", "sha256": "8c57a8a0961fc1bce66a65fdd3c6e543b7f861eb6228761965214fc113a22b08" },
-    ".claude/skills/post-feature/SKILL.md": { "owner": "harness", "sha256": "8933bc72973a743c7e0f966225b6b9e4639e2668f504c04e18676a1b62f7be9f" },
-    ".claude/skills/pre-feature/SKILL.md": { "owner": "harness", "sha256": "cdb27b2a9ea569d7c8cec793a99e9a7d83bbddcd12cacb08537200ecaa4a417c" },
-    ".claude/skills/quickstart/SKILL.md": { "owner": "harness", "sha256": "83fa7b05f9aa6b85c41a611ce8e3f3cd51a51f7054f1c295caee2220ce9aa695" },
-    ".claude/skills/refactor/SKILL.md": { "owner": "harness", "sha256": "7ac217dc803bf32dbd6a05285a884b3b74d6051ae39ead3942c179e0d5b805bc" },
-    ".claude/skills/research/SKILL.md": { "owner": "harness", "sha256": "177627a2955721d87982d79a6dc722af2d3941d5b0cbcdaff1ad9d048c5da1a5" },
-    ".claude/skills/setup/SKILL.md": { "owner": "harness", "sha256": "5db8c0cfbfe9125fb8748450b65b19b66ac0ebec9bd47f7c26fe7aab52ecbd33" },
-    ".claude/skills/swiftui-macos-26/SKILL.md": { "owner": "harness", "sha256": "8e4cad3ecdfd71cdc83576fa440cfe3f4bded4d25d26c26697bfcb6dd69cca2d" },
-    ".claude/skills/swiftui-macos-26/references/design-research.md": { "owner": "harness", "sha256": "dcdd2cda4f6519d3c6aa883d621a26893c93683a42dd5414ac98383b4b7a42db" },
-    ".claude/skills/swiftui-pro/SKILL.md": { "owner": "harness", "sha256": "b8a892d4819494ef79f1db68ffee7a940f20304589ce38032c853dadff168199" },
-    ".claude/skills/swiftui-pro/references/accessibility.md": { "owner": "harness", "sha256": "708d09a35c950fd4c118bbb3cfcab13bb146e7d02084615307bbabc19e00a0e3" },
-    ".claude/skills/swiftui-pro/references/api.md": { "owner": "harness", "sha256": "12fa73d65a19c9d08224f925801db8eec914b1cedf5b2f86a38cdda04a66377a" },
-    ".claude/skills/swiftui-pro/references/data.md": { "owner": "harness", "sha256": "5cc50484c525f748839e12174c065f7ea5fdd4380ce04b6885a906ecd6e6a318" },
-    ".claude/skills/swiftui-pro/references/design.md": { "owner": "harness", "sha256": "03e35d46865cc6807255f3c8481cdbac7b3b0f61924185af84c1913d6c983c69" },
-    ".claude/skills/swiftui-pro/references/hygiene.md": { "owner": "harness", "sha256": "91d96f45f3ffa02f5553c288415f3c3d5f317cab7d8d9c6c60240ea6c44a2b01" },
-    ".claude/skills/swiftui-pro/references/navigation.md": { "owner": "harness", "sha256": "a3adb302455993aff85bbb6b5845ed2fcffa137c8b2ded99c937f3e4b7fcd77b" },
-    ".claude/skills/swiftui-pro/references/performance.md": { "owner": "harness", "sha256": "1b503e3807e216d6b34b45f18bfba89214cea2fa1b88dd7ae8f482ebf0f03616" },
-    ".claude/skills/swiftui-pro/references/swift.md": { "owner": "harness", "sha256": "8c31c5f5f99b3fa9586f0260cd1a4b1688dc7bda5e8de2891eb3f9d6a791125a" },
-    ".claude/skills/swiftui-pro/references/views.md": { "owner": "harness", "sha256": "79a166f6507e86744c0f73cfb583100f61a5da37e313ef4586b3b31136a73627" },
-    ".claude/skills/sync/SKILL.md": { "owner": "harness", "sha256": "4228cb05de394109136a07f86f17eaa48b29d5eb44ffdab299f087974715bd0b" },
-    ".claude/skills/visual-spec/SKILL.md": { "owner": "harness", "sha256": "f37ff7d355f38907cee876307abb773b94f39268a58926c3650359990e923d17" },
-    ".claude/hooks/inject-state.sh": { "owner": "harness", "sha256": "be9189d7f418bd5735e9734e5cd9f7d244ebd66e903e3abd4c8dedcf94bdf8b8" },
-    ".claude/settings.json": { "owner": "harness", "sha256": "a6927693be786de70f16f05f2eb3fa143908bf6bf2ebc93242fd88f7aee42fa8" },
-    ".assistant/INVARIANTS.md": { "owner": "harness", "sha256": "4d5ff6e6ab0daa2a48488ab6c13b94bbe1d6c18b613cd3b838c670e3b53352dc" },
-    "AGENTS.md": { "owner": "harness", "sha256": "e1f19089db0e5a6a849b4514079dfad32a4720dd573ec408b302b52818b70211" },
-    ".memory-bank/product-overview/anti-stories.md": { "owner": "project-template", "sha256": "79637d39ecc695029f5d555d31578a82264a323a089f8fa5583e27f488f81744" },
-    ".memory-bank/steerings/project-rules.md": { "owner": "project-template", "sha256": "9f845b6c135fceb5877f8d8047991af99c38aeee9ea490b88cc7a3fe7632c5cf" },
-    ".memory-bank/steerings/project-types.md": { "owner": "project-template", "sha256": "19465f52ea7c384f412d0057b42613d3df39f7fe200858138015cc541ca59450" },
-    ".memory-bank/product-overview/vision.md": { "owner": "project-template", "sha256": "c18c17c091adbbc77f3a51d1fa617ff32eb0ffed0407c95eff5044bbc03b9535" },
-    ".memory-bank/tech-details/stack.md": { "owner": "project-template", "sha256": "865ab806943011cfa177ee248235ecf24573e0371c3430cfd9c24c5932c01d77" },
-    ".memory-bank/tech-details/glossary.md": { "owner": "project-template", "sha256": "7787370455d16ba528f9916ca8527784557c16a5e4d60a7d84f1ecfcd407867f" },
-    ".memory-bank/index.md": { "owner": "project-template", "sha256": "8d3826f84c7cd759fa20fdf42fee15fe51f895f2a27da6a4d1feb3a90192057d" },
-    "CLAUDE.md": { "owner": "project-template", "sha256": "3524b4f126104d05c4fe4ed1ea30d07bc6be8ff379de6bb1169cf9c9f08b5dbd" },
-    ".assistant/decisions.md": { "owner": "project-template", "sha256": "69273a39efdeab4bc6a3c9afb5aea499b9f693f17acf7f3f63ca2f1da66b484d" },
-    ".assistant/open-questions.md": { "owner": "project-template", "sha256": "859987f1d5dff287767ca2253158fa3e53f70ce6c0cd43d0569a472c00e7a5eb" }
-  }
+    ".claude/agents/android.md": {
+      "owner": "harness",
+      "sha256": "13f930dbe7dee5fcc5bc3429153efd4ab76334970c1493adc1cc913c09e522b2"
+    },
+    ".claude/agents/anti-bot-evasion.md": {
+      "owner": "harness",
+      "sha256": "bc66c21afa06d2529edb39f550299e16f31c87b9cf3674f81b518b0aa329cbeb"
+    },
+    ".claude/agents/api.md": {
+      "owner": "harness",
+      "sha256": "31c1a52877f8b77c7da0aea8db0c139500c2444021c1ec5ea17e3e20f86cd9f3"
+    },
+    ".claude/agents/apple-ci-engineer.md": {
+      "owner": "harness",
+      "sha256": "f2dee2f6d715719b3cda609b00220e68d6d097bff5e11782cdf211e8e37e574a"
+    },
+    ".claude/agents/apple-platform-debugger.md": {
+      "owner": "harness",
+      "sha256": "d5071134098293d7e1fde72d9c875e8a72f58494b7ed47208fd005dfbe925618"
+    },
+    ".claude/agents/architect.md": {
+      "owner": "harness",
+      "sha256": "d24920cc193249418956a01a8c873a07e4b438f312efa337db7a04d603140b6f"
+    },
+    ".claude/agents/backend.md": {
+      "owner": "harness",
+      "sha256": "0678b3e2dd14be1fdf03e0bb1c07f8e9de5e6ceee034024982febcd2effc0ae8"
+    },
+    ".claude/agents/devops.md": {
+      "owner": "harness",
+      "sha256": "725ce735335d591950d01b9fae3d3901e8787d75e65f0d37180677693e362e9f"
+    },
+    ".claude/agents/diagnostics.md": {
+      "owner": "harness",
+      "sha256": "e91c0c2e5492098cf7fe9b098ee57dd498012c4d038163f586384911375c9a28"
+    },
+    ".claude/agents/electronics.md": {
+      "owner": "harness",
+      "sha256": "da409e9e8754c04a9581f94b9a2d4a4694f1eee18dab1583d6dad3c6b83a986a"
+    },
+    ".claude/agents/embedded.md": {
+      "owner": "harness",
+      "sha256": "70615c9ba835168dd11493d9fceb9e6db33036837de9c7718f08ed42fb2ab34e"
+    },
+    ".claude/agents/flutter.md": {
+      "owner": "harness",
+      "sha256": "b83c478d97f28ecd5de44567aa3939f10ef8e0bf24ddf1683f0980c9b36436a0"
+    },
+    ".claude/agents/frontend.md": {
+      "owner": "harness",
+      "sha256": "c415a6491bbb7d1636f5560a80a0b37d4533f24035ade3bd8718e15b6446e4f9"
+    },
+    ".claude/agents/ios.md": {
+      "owner": "harness",
+      "sha256": "9141caabfd6ad2c37d61f4fb855942242d2c089686b271af4d89ab82794e8035"
+    },
+    ".claude/agents/proxy-strategist.md": {
+      "owner": "harness",
+      "sha256": "880251338d8f38826b88ddc13ce584bf9821c93fa92f8c7285311042b0ee0746"
+    },
+    ".claude/agents/researcher.md": {
+      "owner": "harness",
+      "sha256": "2452f62f0d813ecbf21da959b01e05bfface7580c892457063d8a630aab433c4"
+    },
+    ".claude/agents/reviewer.md": {
+      "owner": "harness",
+      "sha256": "6b13b497e7d4d5641ca3fc5694f0341bd1d67bbe5a2068049b8b1e6ba4fbcaf5"
+    },
+    ".claude/agents/scraping-architect.md": {
+      "owner": "harness",
+      "sha256": "4eef1048237bf6b7a5ea6cb76cb5a4a6f3fab2ccc282eb92204e109229c658b9"
+    },
+    ".claude/agents/scraping-diagnostician.md": {
+      "owner": "harness",
+      "sha256": "b7aac1ba98e48ea73785176754f4735bb89122d187534831a5bd28a8d49f66d9"
+    },
+    ".claude/agents/security.md": {
+      "owner": "harness",
+      "sha256": "b328af8d86e0835a24217ca5ff5f4c80d2f7b1de766331de09efafa3091b1b9f"
+    },
+    ".claude/agents/skeptic.md": {
+      "owner": "harness",
+      "sha256": "3876c54a61b85c28bedb7b65bfddde5944fde3a0adb7e68e8569307c92c66d85"
+    },
+    ".claude/agents/surface-scout.md": {
+      "owner": "harness",
+      "sha256": "af1400ccd1b97cf824dec8c69f9432017de42d0930f898ca5c0b8491f4a5687b"
+    },
+    ".claude/agents/swiftui-architect.md": {
+      "owner": "harness",
+      "sha256": "b8425131f48dee73712053b00d457ff2af3131bcb34261763b64e1de531fb8f4"
+    },
+    ".claude/agents/swiftui-design-critic.md": {
+      "owner": "harness",
+      "sha256": "9b2591377ea5532ac1e918ad2c196ec116f61e8df6c071ed9a5389be3607adb7"
+    },
+    ".claude/agents/test.md": {
+      "owner": "harness",
+      "sha256": "0f62010ea88df89efbad760065da66a9c5e0e5bc3e4ee03a5dac7c2d17afaea5"
+    },
+    ".claude/agents/web.md": {
+      "owner": "harness",
+      "sha256": "0d7aef55dd5ffbd41573879bead85fe1c0a2ebf5119cb422599e5654b7ecb3f4"
+    },
+    ".claude/skills/anti-ai-slop-writing/SKILL.md": {
+      "owner": "harness",
+      "sha256": "1d230dddbc53ab54c846136954873ec113443cdca5742c80ca10e7ccc86c100b"
+    },
+    ".claude/skills/anti-ai-slop-writing/references/banned-words.md": {
+      "owner": "harness",
+      "sha256": "1f099b76cf9a093cd1370cec569ab303f3bf3bbb194f5c43dd46b2ae796d25d7"
+    },
+    ".claude/skills/apple-anim-review/SKILL.md": {
+      "owner": "harness",
+      "sha256": "c89a48a3df19b5e79d08ce5f27c5cd1b9b90a13b863f35c6d4aea321e2d7e8b3"
+    },
+    ".claude/skills/apple-design-critic/SKILL.md": {
+      "owner": "harness",
+      "sha256": "10e7dffbb5be3160308604aa6dafa524581cda05ba35a26fa7fd45576f27433e"
+    },
+    ".claude/skills/apple-impl/SKILL.md": {
+      "owner": "harness",
+      "sha256": "13667da250621ece64fbab97cd5237f65d0d5348535450525d9855ceaf3c34bb"
+    },
+    ".claude/skills/apple-simulator-debug/SKILL.md": {
+      "owner": "harness",
+      "sha256": "b331c2fb4ccf4a98048c9c9deff7be1e32277907b52326864d3aecc96b5449b3"
+    },
+    ".claude/skills/audit/SKILL.md": {
+      "owner": "harness",
+      "sha256": "9243b489231eb840ddbbbc5c0842790a25e24e749ad2ed8dfca4982d38b083e6"
+    },
+    ".claude/skills/contribute/SKILL.md": {
+      "owner": "harness",
+      "sha256": "659dd8e19e815fb5fc825e1c3ebc5f7f6bb03a003520b8893c8ea5734cf8edbf"
+    },
+    ".claude/skills/diagnose/SKILL.md": {
+      "owner": "harness",
+      "sha256": "23027555995be0ce74ce692569bcdb308500c26ca1bdba393f0e18707d5feb25"
+    },
+    ".claude/skills/frontend-design/SKILL.md": {
+      "owner": "harness",
+      "sha256": "d39adf3a983de7dafc75991590d54f091755f7e4163d5a5ed085ecd719157184"
+    },
+    ".claude/skills/implementor/SKILL.md": {
+      "owner": "harness",
+      "sha256": "40d12063ae709dbef9114772fe8eac7f0b47399bfb3e8ea4add25787fcac02ac"
+    },
+    ".claude/skills/memory-bank-defrag/SKILL.md": {
+      "owner": "harness",
+      "sha256": "8c57a8a0961fc1bce66a65fdd3c6e543b7f861eb6228761965214fc113a22b08"
+    },
+    ".claude/skills/post-feature/SKILL.md": {
+      "owner": "harness",
+      "sha256": "8933bc72973a743c7e0f966225b6b9e4639e2668f504c04e18676a1b62f7be9f"
+    },
+    ".claude/skills/pre-feature/SKILL.md": {
+      "owner": "harness",
+      "sha256": "cdb27b2a9ea569d7c8cec793a99e9a7d83bbddcd12cacb08537200ecaa4a417c"
+    },
+    ".claude/skills/quickstart/SKILL.md": {
+      "owner": "harness",
+      "sha256": "83fa7b05f9aa6b85c41a611ce8e3f3cd51a51f7054f1c295caee2220ce9aa695"
+    },
+    ".claude/skills/refactor/SKILL.md": {
+      "owner": "harness",
+      "sha256": "7ac217dc803bf32dbd6a05285a884b3b74d6051ae39ead3942c179e0d5b805bc"
+    },
+    ".claude/skills/research/SKILL.md": {
+      "owner": "harness",
+      "sha256": "177627a2955721d87982d79a6dc722af2d3941d5b0cbcdaff1ad9d048c5da1a5"
+    },
+    ".claude/skills/setup/SKILL.md": {
+      "owner": "harness",
+      "sha256": "5db8c0cfbfe9125fb8748450b65b19b66ac0ebec9bd47f7c26fe7aab52ecbd33"
+    },
+    ".claude/skills/swiftui-macos-26/SKILL.md": {
+      "owner": "harness",
+      "sha256": "8e4cad3ecdfd71cdc83576fa440cfe3f4bded4d25d26c26697bfcb6dd69cca2d"
+    },
+    ".claude/skills/swiftui-macos-26/references/design-research.md": {
+      "owner": "harness",
+      "sha256": "dcdd2cda4f6519d3c6aa883d621a26893c93683a42dd5414ac98383b4b7a42db"
+    },
+    ".claude/skills/swiftui-pro/SKILL.md": {
+      "owner": "harness",
+      "sha256": "b8a892d4819494ef79f1db68ffee7a940f20304589ce38032c853dadff168199"
+    },
+    ".claude/skills/swiftui-pro/references/accessibility.md": {
+      "owner": "harness",
+      "sha256": "708d09a35c950fd4c118bbb3cfcab13bb146e7d02084615307bbabc19e00a0e3"
+    },
+    ".claude/skills/swiftui-pro/references/api.md": {
+      "owner": "harness",
+      "sha256": "12fa73d65a19c9d08224f925801db8eec914b1cedf5b2f86a38cdda04a66377a"
+    },
+    ".claude/skills/swiftui-pro/references/data.md": {
+      "owner": "harness",
+      "sha256": "5cc50484c525f748839e12174c065f7ea5fdd4380ce04b6885a906ecd6e6a318"
+    },
+    ".claude/skills/swiftui-pro/references/design.md": {
+      "owner": "harness",
+      "sha256": "03e35d46865cc6807255f3c8481cdbac7b3b0f61924185af84c1913d6c983c69"
+    },
+    ".claude/skills/swiftui-pro/references/hygiene.md": {
+      "owner": "harness",
+      "sha256": "91d96f45f3ffa02f5553c288415f3c3d5f317cab7d8d9c6c60240ea6c44a2b01"
+    },
+    ".claude/skills/swiftui-pro/references/navigation.md": {
+      "owner": "harness",
+      "sha256": "a3adb302455993aff85bbb6b5845ed2fcffa137c8b2ded99c937f3e4b7fcd77b"
+    },
+    ".claude/skills/swiftui-pro/references/performance.md": {
+      "owner": "harness",
+      "sha256": "1b503e3807e216d6b34b45f18bfba89214cea2fa1b88dd7ae8f482ebf0f03616"
+    },
+    ".claude/skills/swiftui-pro/references/swift.md": {
+      "owner": "harness",
+      "sha256": "8c31c5f5f99b3fa9586f0260cd1a4b1688dc7bda5e8de2891eb3f9d6a791125a"
+    },
+    ".claude/skills/swiftui-pro/references/views.md": {
+      "owner": "harness",
+      "sha256": "79a166f6507e86744c0f73cfb583100f61a5da37e313ef4586b3b31136a73627"
+    },
+    ".claude/skills/sync/SKILL.md": {
+      "owner": "harness",
+      "sha256": "4228cb05de394109136a07f86f17eaa48b29d5eb44ffdab299f087974715bd0b"
+    },
+    ".claude/skills/visual-spec/SKILL.md": {
+      "owner": "harness",
+      "sha256": "f37ff7d355f38907cee876307abb773b94f39268a58926c3650359990e923d17"
+    },
+    ".claude/hooks/inject-state.sh": {
+      "owner": "harness",
+      "sha256": "303d611a039b2d6c747ea6433578a63a2167e0399b1af7e1f23230029cc26267"
+    },
+    ".claude/settings.json": {
+      "owner": "harness",
+      "sha256": "cc7ebc6b5c60bc74290fec023c6394bc09a8f8e7089793a1bb8c1fa2014bb3ad"
+    },
+    ".assistant/INVARIANTS.md": {
+      "owner": "harness",
+      "sha256": "4d5ff6e6ab0daa2a48488ab6c13b94bbe1d6c18b613cd3b838c670e3b53352dc"
+    },
+    "AGENTS.md": {
+      "owner": "harness",
+      "sha256": "863557ca83a239fc58f860cff5cd31de4c55120d401380ab9264de43eb8a8fc5"
+    },
+    ".memory-bank/product-overview/anti-stories.md": {
+      "owner": "project-template",
+      "sha256": "79637d39ecc695029f5d555d31578a82264a323a089f8fa5583e27f488f81744"
+    },
+    ".memory-bank/steerings/project-rules.md": {
+      "owner": "project-template",
+      "sha256": "9f845b6c135fceb5877f8d8047991af99c38aeee9ea490b88cc7a3fe7632c5cf"
+    },
+    ".memory-bank/steerings/project-types.md": {
+      "owner": "project-template",
+      "sha256": "19465f52ea7c384f412d0057b42613d3df39f7fe200858138015cc541ca59450"
+    },
+    ".memory-bank/product-overview/vision.md": {
+      "owner": "project-template",
+      "sha256": "525760a9ea92a4cce43b7f70110a5b848baea28f12340ff0ac9e2f2ad47d17b2"
+    },
+    ".memory-bank/tech-details/stack.md": {
+      "owner": "project-template",
+      "sha256": "ab2f8d81e56cdd48cca1b94cbccf2d7287c3779414eebaba11a58b123faeb992"
+    },
+    ".memory-bank/tech-details/glossary.md": {
+      "owner": "project-template",
+      "sha256": "2b07a81d9139dc940ceb0735425c3f32844dc4abf61f772c00a08132eba3e51b"
+    },
+    ".memory-bank/index.md": {
+      "owner": "project-template",
+      "sha256": "8d3826f84c7cd759fa20fdf42fee15fe51f895f2a27da6a4d1feb3a90192057d"
+    },
+    "CLAUDE.md": {
+      "owner": "project-template",
+      "sha256": "bd1dd2d243b8be37c35908f026fcd583eff3d76676f41f8f2a74889dc71ab22c"
+    },
+    ".assistant/decisions.md": {
+      "owner": "project-template",
+      "sha256": "8606c0bf2f2facd27b82b22a4e38e8ba31f73d3b0122b678158c0ef983d7707c"
+    },
+    ".assistant/open-questions.md": {
+      "owner": "project-template",
+      "sha256": "73abdc27f1c716282d4863736108b8215007bcbdd539bc20364c5a95a148d586"
+    },
+    ".claude/agents/cortex-m-low-level.md": {
+      "owner": "harness",
+      "sha256": "a1997efd0c446e6fa78cdae7afbf807eb4fd6db44f9dad6eac9876ae8f1a88e0"
+    },
+    ".claude/agents/embedded-build.md": {
+      "owner": "harness",
+      "sha256": "9bdb3d10111052bee2639c381dd107d741dc3cd96f58a671391bd29401c384d7"
+    },
+    ".claude/agents/embedded-c-reviewer.md": {
+      "owner": "harness",
+      "sha256": "2ed5127461a8ed607d008742fb5255b8de60a2d9746861747b1fb6842170a558"
+    },
+    ".claude/hooks/.gitkeep": {
+      "owner": "harness",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    ".claude/hooks/cost-cap.sh": {
+      "owner": "harness",
+      "sha256": "818c2f46bcd3f4d84358fc867dceea393c3ea2f947e7b82fc833a691f5378f20"
+    },
+    ".claude/hooks/evidence-gate.sh": {
+      "owner": "harness",
+      "sha256": "57a3bbe1d871968108f3f94ea604ca8d372114c577feb47de1ab20051b2137ec"
+    },
+    ".claude/hooks/lint-gate.sh": {
+      "owner": "harness",
+      "sha256": "042bbac0c797d02a8d68cd1aad7ed82b887d940227aed6f238cbee8016701dc4"
+    },
+    ".claude/hooks/loop-detect.sh": {
+      "owner": "harness",
+      "sha256": "927c537b64599dada1e82c4b77bb0d431e2849a3851b00e03c8a97054846678e"
+    },
+    ".claude/hooks/orphan-guard.sh": {
+      "owner": "harness",
+      "sha256": "8c5643ae7cb96fc67bb78d4f2965090506e5d01bc011c4061dfe56ceb6a2a859"
+    },
+    ".claude/hooks/read-imperative.sh": {
+      "owner": "harness",
+      "sha256": "3514416d307bf9b667ce1c11b9bf856b58b949465c77009a3a9a2fd44c1bcb49"
+    },
+    ".claude/hooks/slop-gate.sh": {
+      "owner": "harness",
+      "sha256": "5895fe373c04780e26e7915bd05098a791e8029ae026570b129eb6b5ed2b4686"
+    },
+    ".claude/hooks/verify-gate.sh": {
+      "owner": "harness",
+      "sha256": "f00997a4db651d0309f967fa7a904aab7999a67d40ff315a478e8140c9653778"
+    },
+    ".claude/skills/reflect/SKILL.md": {
+      "owner": "harness",
+      "sha256": "66677650b2d80665f7080fcc1598d3edbc17305fe78ee5b253cf1fc5aec30429"
+    },
+    ".claude/skills/reflect/scripts/reflect_extract.py": {
+      "owner": "harness",
+      "sha256": "ed03473e20a95206d9fa69f82498678f38a80c7ea16caafcb50e4acc9ee130b6"
+    }
+  },
+  "last_synced_at": "2026-07-09T19:42:41Z",
+  "sync_history": [
+    {
+      "from": "698eb86489901cb0cd49d3c4a91643730dc5c1ea",
+      "to": "6ea46b4dd7af80cdf774f168022c3df00e1dbb26",
+      "at": "2026-07-09T19:42:41Z",
+      "conflicts": 0,
+      "decisions": "none"
+    }
+  ]
 }
