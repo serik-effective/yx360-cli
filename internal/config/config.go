@@ -45,6 +45,7 @@ const CalendarScope = "calendar:all"
 const TelemostCreateScope = "telemost-api:conferences.create"
 const FormsReadScope = "forms:read"
 const FormsWriteScope = "forms:write"
+const VerificationCodeRedirectURI = "https://oauth.yandex.ru/verification_code"
 
 func CalendarClientID() string {
 	return os.Getenv("YX360_CALENDAR_CLIENT_ID")

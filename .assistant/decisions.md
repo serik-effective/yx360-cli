@@ -152,3 +152,35 @@
 **Source:** live session 2026-06-20 (survey `6a368226969f14081ef9ece7`, 1 submission read: Контент=1, Спикеры=1, Организация=3, Локация=4, Нетворкинг=2); `swarm-report/yandex-forms-get-create-publish-implementation-2026-06-20.md`. Branch `feat/yandex-forms-get-create-publish`. Forms credentials only via untracked `.env`.
 **Closes:** OQ-015 (Forms live verification — done), OQ-016 (Forms question authoring — `forms questions add` shipped + live-confirmed).
 **Raises:** OQ-017 (Forms org-id auto-discovery / user-prompt fallback). OQ-014 (list-all endpoint) and OQ-011 (profile-aware logout) remain open.
+
+---
+
+## D-012 — Harness synced 698eb86 → 6ea46b4
+
+**Date:** 2026-07-10
+**Status:** accepted
+**Decision:** Harness updated `698eb86` → `6ea46b4` (5 commits) via `/sync` from a fresh checkout at `~/dev/harness`.
+**Counts:** +14 add ~3 overwrite -0 delete ↻0 restore; 0 conflicts.
+**Added:** 8 Stop-gate hooks (`cost-cap`, `evidence-gate`, `lint-gate`, `loop-detect`, `orphan-guard`, `read-imperative`, `slop-gate`, `verify-gate`) + `.gitkeep`; `reflect` skill (+ `reflect_extract.py`); 3 embedded agents (`cortex-m-low-level`, `embedded-build`, `embedded-c-reviewer`).
+**Overwritten:** `.claude/hooks/inject-state.sh`, `.claude/settings.json` (registers the new hooks), `.claude/skills/implementor/SKILL.md`.
+**Template updates pending manual merge:** `.assistant/decisions.md`, `.assistant/open-questions.md`, `.memory-bank/index.md`, `.memory-bank/product-overview/vision.md`, `CLAUDE.md` — project-owned, upstream seed changed; merge by hand if wanted.
+**Local drift left untouched:** `AGENTS.md` (target-edited, upstream unchanged).
+**Note:** 3 embedded agents are irrelevant to this Go/CLI project but are harness-owned framework files; harmless. New Stop-gate hooks are now active in-session.
+**Source:** `git@github.com:effective-dev-os/harness.git@6ea46b4dd7af80cdf774f168022c3df00e1dbb26`
+
+---
+
+## D-013 — `yx360 login --manual`: headless two-step authorization-code + PKCE (`verification_code` redirect)
+
+**Date:** 2026-07-10
+**Status:** accepted
+**Decision:** Added `yx360 login --manual --begin/--complete` for browser-less remote/VDS hosts. `--begin` resolves the credential profile and scopes from the same flags as the interactive flow, prints the Yandex auth URL (redirect set to `https://oauth.yandex.ru/verification_code`), and persists a 0600 pending-state file (`UserConfigDir/yx360/manual-login.json`, mode 0600, dir 0700, 10-min TTL) containing `{code_verifier, state, profile, scopes, clientID}`. `--complete --code <code-or-redirect-url>` loads the pending state, validates CSRF via `subtle.ConstantTimeCompare`, exchanges the code secretlessly via PKCE (reusing the extracted `exchangeCode()` helper from `oauth.go`), stores the token in the resolved credential profile, and deletes the pending file. Device flow is out of scope: Yandex requires `client_secret` for device-code→token exchange (same gap as D-004). Verifier is never printed; pending file deleted on success and failure.
+**Why now:** P0 roadmap item: VDS/remote/headless hosts where no local browser and no loopback port are reachable cannot use the existing loopback → device ladder. Owner waived the three blockers from the consilium: B-1 (register the `verification_code` redirect URI in each Yandex OAuth app — human task, tracked OQ-018), B-2 (explicit `--insecure-file-store` required, no silent plaintext — satisfied in code by `selectStoreFor(profile)`), and B-3 (0600 pending-state file per spec — satisfied in code).
+**Alternatives rejected:**
+- **Device Authorization Grant** — Yandex device-code→token exchange requires `client_secret` (plan researcher, corroborated); blocked for public CLI same as refresh (D-004).
+- **Single-process in-memory state** — rejected: not agent-driveable when `--begin` and `--complete` are separate process invocations (consilium architect).
+- **Paste a localhost redirect URL** — rejected: requires a listener on the remote host, broken "can't connect" page UX, SSH port-forward complexity; consilium researcher pivoted to `verification_code` display redirect.
+- **Generic OOB `urn:ietf:wg:oauth:2.0:oob`** — deprecated; Yandex `verification_code` redirect is the provider-specific still-supported variant.
+**Source:** `swarm-report/remote-headless-manual-login-plan-2026-06-20.md` (consilium: architect + skeptic + researcher + reviewer); `swarm-report/remote-headless-manual-login-implementation-2026-07-10.md`.
+**Closes:** nothing yet — OQ-018 (register redirect + live end-to-end verify) stays open until B-1 lands and a full `--begin → browser consent → --complete → token` run passes (ANTI-11).
+**Raises:** OQ-018.

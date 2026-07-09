@@ -32,6 +32,14 @@ func oauthConfig(cfg config.OAuth, opts AuthOptions) *oauth2.Config {
 	}
 }
 
+func exchangeCode(ctx context.Context, conf *oauth2.Config, code, verifier string) (*oauth2.Token, error) {
+	tok, err := conf.Exchange(httpContext(ctx), code, oauth2.VerifierOption(verifier))
+	if err != nil {
+		return nil, fmt.Errorf("oauth token exchange failed: %w", err)
+	}
+	return tok, nil
+}
+
 func credentialFromToken(tok *oauth2.Token, via GrantKind, scopes []string) *Credential {
 	return &Credential{
 		AccessToken:  tok.AccessToken,

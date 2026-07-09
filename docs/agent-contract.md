@@ -25,6 +25,8 @@ Use the global `--json` flag for machine-readable output:
 
 ```bash
 yx360 --json login --mail
+yx360 --json login --manual --begin --mail
+yx360 --json login --manual --complete --code <code> --insecure-file-store
 yx360 --json mail list --limit 20
 yx360 --json mail read <uid>
 yx360 --json mail send --to user@example.com --subject "Subject" --body "Body" --yes
@@ -49,6 +51,7 @@ yx360 --json forms unpublish <survey-id> --yes
 Current JSON output is pretty-printed JSON on stdout. The shape is command-specific and contains non-secret result fields only, for example:
 
 - `login`: `status`, `account`, `scopes`, optional `expiry`.
+- `login --manual --begin`: `status` (`manual-begin`), `auth_url`. No token or PKCE verifier is ever emitted.
 - `logout`: `status`.
 - `mail list` and `mail search`: an array of message summaries.
 - `mail read`: one message with metadata, body, attachment manifest, and optional `unsubscribe_options`.
@@ -67,6 +70,18 @@ Current JSON output is pretty-printed JSON on stdout. The shape is command-speci
 Public links are derived by the CLI (the API does not return them): a published form is at `https://forms.yandex.ru/cloud/<survey_id>`, answer stats at `https://forms.yandex.ru/cloud/admin/<survey_id>/answers?view=stats`.
 
 Agents may rely on field names listed above for the current major CLI surface. They must tolerate additional fields.
+
+## Headless Manual Login
+
+For browser-less remote agents (for example a VDS with no local browser), `yx360 login --manual` runs OAuth in two steps so the human can complete consent in their own browser and paste back only a short code. It uses secretless public-client PKCE; the PKCE verifier is never printed.
+
+- `yx360 login --manual --begin [scope-flags]` prints only the auth URL and writes a pending-state file. JSON payload: `{"status":"manual-begin","auth_url":"..."}`. Scope flags (`--mail`/`--mail-send`, `--calendar`/`--telemost`, `--forms`) compose exactly like normal `login` and pick the target profile here; the same one-app-per-login rejection applies. The chosen profile is remembered in the pending file for `--complete` — do not re-pass scope flags at complete.
+- The user opens the URL in their own browser and approves. Yandex redirects to `https://oauth.yandex.ru/verification_code`, which displays the authorization code in the browser.
+- `yx360 login --manual --complete --code <code>` exchanges the displayed code plus the stored PKCE verifier for the token, stores it in the selected profile, and emits the normal token-free login object (`status`, `account`, `profile`, `scopes`, `expiry`). `--code` also accepts a full redirect URL (the CLI parses `code` and `state` from it).
+- On a headless host with no OS keychain, run `--complete` with the global `--insecure-file-store` flag; without it the keychain errors and there is no silent plaintext fallback.
+- `--manual` cannot be combined with `--device`, and exactly one of `--begin`/`--complete` is required. The device flow remains unavailable for the remote-paste use case because the Yandex device-code-to-token exchange requires a `client_secret`.
+
+No token, refresh token, or PKCE verifier is printed at any step. The `--begin` output is only the auth URL and the `--complete` output is only the token-free login object.
 
 ## Token Redaction
 

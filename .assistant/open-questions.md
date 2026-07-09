@@ -87,3 +87,10 @@ Resolved: read-side Mail uses `mail:imap_full`; SMTP/send uses `mail:smtp`. Both
 **Why it matters:** The Forms API requires an org id, but no documented endpoint returns it for a `forms:*`-scoped token; today it is operator-configured env (`YX360_FORMS_ORG_ID`). Live testing burned several tries on wrong values (a uid, a hex id) before the numeric `7023313` worked, with only raw API errors as feedback. A prompt-on-missing fallback (owner-requested) would improve out-of-box UX; true runtime auto-discovery likely needs a different API/scope and a surface consilium.
 **Linked:** D-011; OQ-014
 **Status:** open; decide prompt-fallback (cheap) vs auto-discovery (needs research) before broader rollout.
+
+## OQ-018 — Register `verification_code` redirect + live end-to-end verify for `--manual`
+**Priority:** high
+**Question:** Has `https://oauth.yandex.ru/verification_code` been registered as a redirect URI in each Yandex OAuth app (mail, calendar-telemost, forms), and has the full `login --manual --begin → browser consent → --complete → token` flow been verified live against a real org account?
+**Why it matters:** Yandex matches `redirect_uri` exactly and returns an error if the registered value does not match; no documented port-flexible loopback exists for this redirect. The `--manual` flow is build/unit/smoke-verified (PKCE, state, pending file 0600, secretless exchange via `exchangeCode()`) but is not "done" per ANTI-11 until a live round-trip confirms the `verification_code` display + code exchange succeed.
+**Linked:** D-013; `swarm-report/remote-headless-manual-login-implementation-2026-07-10.md`; `swarm-report/remote-headless-manual-login-plan-2026-06-20.md`
+**Status:** open; blocked on human B-task (register redirect in Yandex OAuth app UI for each app, then run live smoke).

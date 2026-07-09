@@ -10,6 +10,7 @@ type GrantKind string
 const (
 	GrantLoopback GrantKind = "loopback"
 	GrantDevice   GrantKind = "device"
+	GrantManual   GrantKind = "manual"
 )
 
 const expirySkew = 60 * time.Second
