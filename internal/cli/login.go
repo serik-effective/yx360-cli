@@ -14,6 +14,7 @@ const (
 	mailProfile             = "mail"
 	calendarTelemostProfile = "calendar-telemost"
 	formsProfile            = "forms"
+	diskProfile             = "disk"
 )
 
 func newLoginCmd() *cobra.Command {
@@ -25,6 +26,7 @@ func newLoginCmd() *cobra.Command {
 		calendarScope bool
 		telemostScope bool
 		formsScope    bool
+		diskScope     bool
 	)
 	cmd := &cobra.Command{
 		Use:   "login",
@@ -41,8 +43,11 @@ func newLoginCmd() *cobra.Command {
 			if formsScope {
 				selectedApps++
 			}
+			if diskScope {
+				selectedApps++
+			}
 			if selectedApps > 1 {
-				return errors.New("mail, calendar/telemost, and forms scopes use different Yandex OAuth apps; run separate login commands")
+				return errors.New("mail, calendar/telemost, forms, and disk scopes use different Yandex OAuth apps; run separate login commands")
 			}
 			profile := ""
 			if mailScope || mailSendScope {
@@ -62,6 +67,13 @@ func newLoginCmd() *cobra.Command {
 					return errors.New("no Forms OAuth client_id: set YX360_FORMS_CLIENT_ID")
 				}
 			}
+			if diskScope {
+				profile = diskProfile
+				cfg.ClientID = config.DiskClientID()
+				if cfg.ClientID == "" {
+					return errors.New("no Disk OAuth client_id: set YX360_DISK_CLIENT_ID")
+				}
+			}
 			scopes := append([]string(nil), cfg.Scopes...)
 			if mailScope {
 				scopes = append(scopes, config.MailReadScope)
@@ -77,6 +89,9 @@ func newLoginCmd() *cobra.Command {
 			}
 			if formsScope {
 				scopes = append(scopes, config.FormsReadScope, config.FormsWriteScope)
+			}
+			if diskScope {
+				scopes = append(scopes, config.DiskReadScope, config.DiskWriteScope)
 			}
 
 			loopback := auth.NewLoopbackProvider(cfg)
@@ -120,6 +135,7 @@ func newLoginCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&calendarScope, "calendar", false, "request Calendar access")
 	cmd.Flags().BoolVar(&telemostScope, "telemost", false, "request Telemost conference creation access")
 	cmd.Flags().BoolVar(&formsScope, "forms", false, "request Forms read and write access")
+	cmd.Flags().BoolVar(&diskScope, "disk", false, "request Disk read and write access")
 	return cmd
 }
 

@@ -6,13 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/effective-dev-os/yx360-cli/internal/auth"
 	"github.com/effective-dev-os/yx360-cli/internal/config"
+	"github.com/effective-dev-os/yx360-cli/internal/netutil"
 )
 
 var ErrReauthRequired = errors.New("telemost: stored credential is missing, expired, or does not include telemost-api:conferences.create; run yx360 login --telemost")
@@ -33,7 +32,7 @@ type Conference struct {
 }
 
 func NewService(cfg config.Telemost, cred *auth.Credential) *Service {
-	return &Service{cfg: cfg, cred: cred, client: ipv4Client()}
+	return &Service{cfg: cfg, cred: cred, client: netutil.IPv4Client()}
 }
 
 func (s *Service) Create(ctx context.Context, opts CreateOptions) (*Conference, error) {
@@ -74,20 +73,3 @@ func (s *Service) Create(ctx context.Context, opts CreateOptions) (*Conference, 
 	return &conference, nil
 }
 
-func ipv4Client() *http.Client {
-	transport := &http.Transport{
-		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).DialContext,
-		ForceAttemptHTTP2:     true,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-	}
-	transport.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
-		return (&net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}).DialContext(ctx, "tcp4", address)
-	}
-	return &http.Client{Timeout: 30 * time.Second, Transport: transport}
-}

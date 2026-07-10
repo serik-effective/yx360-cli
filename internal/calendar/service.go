@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -15,6 +14,7 @@ import (
 
 	"github.com/effective-dev-os/yx360-cli/internal/auth"
 	"github.com/effective-dev-os/yx360-cli/internal/config"
+	"github.com/effective-dev-os/yx360-cli/internal/netutil"
 )
 
 var ErrReauthRequired = errors.New("calendar: stored credential is missing, expired, or does not include calendar:all; run yx360 login --calendar")
@@ -36,7 +36,7 @@ type MutateOptions struct {
 }
 
 func NewService(cfg config.Calendar, cred *auth.Credential) *Service {
-	return &Service{cfg: cfg, cred: cred, client: ipv4Client()}
+	return &Service{cfg: cfg, cred: cred, client: netutil.IPv4Client()}
 }
 
 func (s *Service) List(ctx context.Context, q Query) ([]Event, error) {
@@ -367,24 +367,6 @@ func absoluteURL(base, href string) string {
 		return strings.TrimRight(base, "/") + "/" + strings.TrimLeft(href, "/")
 	}
 	return u.ResolveReference(ref).String()
-}
-
-func ipv4Client() *http.Client {
-	transport := &http.Transport{
-		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).DialContext,
-		ForceAttemptHTTP2:     true,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-	}
-	transport.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
-		return (&net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}).DialContext(ctx, "tcp4", address)
-	}
-	return &http.Client{Timeout: 30 * time.Second, Transport: transport}
 }
 
 func cloneBody(data string) io.Reader {
