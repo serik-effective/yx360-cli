@@ -19,12 +19,39 @@ Credentials are stored in the OS keychain by default. Agents must not read the k
 
 Mail, Calendar/Telemost, and Forms use different Yandex OAuth apps. Do not request scopes from more than one of these groups in a single `login`; the CLI rejects the combination before OAuth because Yandex rejects mixed scope sets.
 
+## Account Types And Organizations
+
+Surfaces differ in what kind of Yandex account they need:
+
+- **Personal-account self-data:** Mail (IMAP/SMTP), Calendar (CalDAV), Telemost. Documented OAuth with the user's own consent; no organization required.
+- **Yandex 360 for Business (org-bound):** Forms. The Forms API is available only to a Yandex 360 for Business (or Yandex Cloud) organization and requires an org id sent as `X-Org-Id` (numeric) or `X-Cloud-Org-Id` (non-numeric/Cloud). A personal account without such an org cannot use `forms`. There is no auto-discovery of the org id; it is operator-configured via `YX360_FORMS_ORG_ID`.
+
+## Environment Variables
+
+Use environment variables for headless/CI/agent deployment; command-line flags override them where both exist.
+
+| Variable | Required for | Purpose |
+|---|---|---|
+| `YX360_CLIENT_ID` | `login`, Mail | OAuth client id of the Mail/default app |
+| `YX360_CALENDAR_CLIENT_ID` | `login --calendar`/`--telemost` | OAuth client id of the Calendar+Telemost app |
+| `YX360_FORMS_CLIENT_ID` | `login --forms`, `forms *` | OAuth client id of the Forms app |
+| `YX360_FORMS_ORG_ID` | `forms *` | Yandex 360 org id; sent as `X-Org-Id`/`X-Cloud-Org-Id` |
+| `YX360_CONFIG_HOME` | optional | Override config root (token file store, room registry) |
+| `YX360_IMAP_HOST` / `YX360_SMTP_HOST` | optional | Override Mail hosts (default `imap.yandex.ru` / `smtp.yandex.ru`) |
+| `YX360_CALDAV_URL` | optional | Override CalDAV base (default `https://caldav.yandex.ru`) |
+| `YX360_TELEMOST_API_URL` | optional | Override Telemost API base |
+| `YX360_FORMS_API_URL` | optional | Override Forms API base (default `https://api.forms.yandex.net`) |
+
+No `client_secret` is used or accepted anywhere; the CLI is a public OAuth client (PKCE). Never put secrets, tokens, or org-internal URLs in committed files.
+
 ## JSON Mode
 
 Use the global `--json` flag for machine-readable output:
 
 ```bash
 yx360 --json login --mail
+yx360 --json login --manual --begin --mail
+yx360 --json login --manual --complete --code <code> --insecure-file-store
 yx360 --json mail list --limit 20
 yx360 --json mail read <uid>
 yx360 --json mail send --to user@example.com --subject "Subject" --body "Body" --yes
@@ -49,6 +76,7 @@ yx360 --json forms unpublish <survey-id> --yes
 Current JSON output is pretty-printed JSON on stdout. The shape is command-specific and contains non-secret result fields only, for example:
 
 - `login`: `status`, `account`, `scopes`, optional `expiry`.
+- `login --manual --begin`: `status` (`manual-begin`), `auth_url`. No token or PKCE verifier is ever emitted.
 - `logout`: `status`.
 - `mail list` and `mail search`: an array of message summaries.
 - `mail read`: one message with metadata, body, attachment manifest, and optional `unsubscribe_options`.
@@ -67,6 +95,18 @@ Current JSON output is pretty-printed JSON on stdout. The shape is command-speci
 Public links are derived by the CLI (the API does not return them): a published form is at `https://forms.yandex.ru/cloud/<survey_id>`, answer stats at `https://forms.yandex.ru/cloud/admin/<survey_id>/answers?view=stats`.
 
 Agents may rely on field names listed above for the current major CLI surface. They must tolerate additional fields.
+
+## Headless Manual Login
+
+For browser-less remote agents (for example a VDS with no local browser), `yx360 login --manual` runs OAuth in two steps so the human can complete consent in their own browser and paste back only a short code. It uses secretless public-client PKCE; the PKCE verifier is never printed.
+
+- `yx360 login --manual --begin [scope-flags]` prints only the auth URL and writes a pending-state file. JSON payload: `{"status":"manual-begin","auth_url":"..."}`. Scope flags (`--mail`/`--mail-send`, `--calendar`/`--telemost`, `--forms`) compose exactly like normal `login` and pick the target profile here; the same one-app-per-login rejection applies. The chosen profile is remembered in the pending file for `--complete` — do not re-pass scope flags at complete.
+- The user opens the URL in their own browser and approves. Yandex redirects to `https://oauth.yandex.ru/verification_code`, which displays the authorization code in the browser.
+- `yx360 login --manual --complete --code <code>` exchanges the displayed code plus the stored PKCE verifier for the token, stores it in the selected profile, and emits the normal token-free login object (`status`, `account`, `profile`, `scopes`, `expiry`). `--code` also accepts a full redirect URL (the CLI parses `code` and `state` from it).
+- On a headless host with no OS keychain, run `--complete` with the global `--insecure-file-store` flag; without it the keychain errors and there is no silent plaintext fallback.
+- `--manual` cannot be combined with `--device`, and exactly one of `--begin`/`--complete` is required. The device flow remains unavailable for the remote-paste use case because the Yandex device-code-to-token exchange requires a `client_secret`.
+
+No token, refresh token, or PKCE verifier is printed at any step. The `--begin` output is only the auth URL and the `--complete` output is only the token-free login object.
 
 ## Token Redaction
 
@@ -100,6 +140,13 @@ Known actionable errors:
 - `OS keychain unavailable (...): on headless/CI hosts re-run with --insecure-file-store`
 
 Expired tokens are handled by re-running `yx360 login`; refresh is intentionally not implemented.
+
+## Exit Codes And Machine Output
+
+- **Exit codes:** `0` on success, non-zero (currently `1`) on any failure. Branch on the exit code first; only then inspect the error text on stderr. Differentiated codes per failure class are not yet implemented — do not depend on a specific non-zero value.
+- **stdout vs stderr:** in `--json` mode the JSON payload is the only thing written to stdout, *provided the command does not stop at an interactive confirmation*. A human-gated write without `--yes` prints a preview and a `[y/N]` prompt to stdout and then reads stdin — so for machine use always pass `--yes` on gated commands (`mail send`, `mail unsubscribe --apply`, `calendar create/update/delete`, `telemost create`, `forms create/questions add/publish/unpublish`). With `--yes`, no preview/prompt is emitted and stdout stays pure JSON.
+- **Errors** are written through the normal Cobra path to stderr, never to stdout.
+- **Scope transparency (contract guarantee):** when a credential is missing or lacks a scope, the error text names the exact re-auth command to run (e.g. `run yx360 login --forms`). Agents may parse the trailing `run yx360 login ...` to self-heal.
 
 ## Human Gate For Mail Send And Unsubscribe
 

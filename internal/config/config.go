@@ -53,6 +53,7 @@ const FormsReadScope = "forms:read"
 const FormsWriteScope = "forms:write"
 const DiskReadScope = "cloud_api:disk.read"
 const DiskWriteScope = "cloud_api:disk.write"
+const VerificationCodeRedirectURI = "https://oauth.yandex.ru/verification_code"
 
 func CalendarClientID() string {
 	return os.Getenv("YX360_CALENDAR_CLIENT_ID")

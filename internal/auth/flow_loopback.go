@@ -116,9 +116,9 @@ func (p *LoopbackProvider) Authenticate(ctx context.Context, opts AuthOptions) (
 		if res.err != nil {
 			return nil, res.err
 		}
-		tok, err := conf.Exchange(httpContext(ctx), res.code, oauth2.VerifierOption(verifier))
+		tok, err := exchangeCode(ctx, conf, res.code, verifier)
 		if err != nil {
-			return nil, fmt.Errorf("oauth token exchange failed: %w", err)
+			return nil, err
 		}
 		cred := credentialFromToken(tok, GrantLoopback, conf.Scopes)
 		populateAccount(ctx, cred)

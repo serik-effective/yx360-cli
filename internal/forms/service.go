@@ -134,28 +134,35 @@ func (s *Service) CreateSurvey(ctx context.Context, title string) (*Survey, erro
 	return &survey, nil
 }
 
-// AddRatingQuestion adds a single 1..scale radio-choice question (one category).
-// Body shape per Yandex Forms docs, live-unverified (C-1).
-func (s *Service) AddRatingQuestion(ctx context.Context, surveyID, label string, scale int) (map[string]any, error) {
+// AddQuestion adds one question of the given type (rating|text|integer).
+// The rating (enum/radio 1..scale) shape is live-verified; the string/integer
+// shapes are Yandex Forms doc-derived.
+func (s *Service) AddQuestion(ctx context.Context, surveyID, qType, label string, scale int) (map[string]any, error) {
 	if surveyID == "" {
 		return nil, errors.New("forms: survey id is required")
 	}
 	if label == "" {
 		return nil, errors.New("forms: question label is required")
 	}
-	if scale < 2 {
-		return nil, errors.New("forms: rating scale must be at least 2")
+	var question map[string]any
+	switch qType {
+	case "rating":
+		if scale < 2 {
+			return nil, errors.New("forms: rating scale must be at least 2")
+		}
+		items := make([]map[string]string, 0, scale)
+		for i := 1; i <= scale; i++ {
+			items = append(items, map[string]string{"label": strconv.Itoa(i)})
+		}
+		question = map[string]any{"type": "enum", "label": label, "widget": "radio", "items": items}
+	case "text":
+		question = map[string]any{"type": "string", "label": label}
+	case "integer":
+		question = map[string]any{"type": "integer", "label": label}
+	default:
+		return nil, fmt.Errorf("forms: unknown question type %q (want rating|text|integer)", qType)
 	}
-	items := make([]map[string]string, 0, scale)
-	for i := 1; i <= scale; i++ {
-		items = append(items, map[string]string{"label": strconv.Itoa(i)})
-	}
-	body, err := json.Marshal(map[string]any{
-		"type":   "enum",
-		"label":  label,
-		"widget": "radio",
-		"items":  items,
-	})
+	body, err := json.Marshal(question)
 	if err != nil {
 		return nil, err
 	}

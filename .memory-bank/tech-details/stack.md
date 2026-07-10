@@ -1,6 +1,6 @@
 # Stack
 
-> Last updated: 2026-07-10 (research: `swarm-report/research-yandex-360-oauth-cli-login-2026-06-20.md`; login build: `swarm-report/yx360-oauth-login-scaffold-implementation-2026-06-20.md`; Mail build: `swarm-report/mail-inbox-search-attachments-send-implementation-2026-06-20.md` + `swarm-report/mail-send-implementation-2026-06-20.md`; Calendar/Telemost build: `swarm-report/calendar-telemost-plan-2026-06-20.md` + `swarm-report/calendar-telemost-implementation-2026-06-20.md`; Disk build: `swarm-report/yandex-disk-support-plan-2026-07-10.md` + `swarm-report/yandex-disk-support-implementation-2026-07-10.md`)
+> Last updated: 2026-07-10 (research: `swarm-report/research-yandex-360-oauth-cli-login-2026-06-20.md`; login build: `swarm-report/yx360-oauth-login-scaffold-implementation-2026-06-20.md`; Mail build: `swarm-report/mail-inbox-search-attachments-send-implementation-2026-06-20.md` + `swarm-report/mail-send-implementation-2026-06-20.md`; Calendar/Telemost build: `swarm-report/calendar-telemost-plan-2026-06-20.md` + `swarm-report/calendar-telemost-implementation-2026-06-20.md`; headless manual login: `swarm-report/remote-headless-manual-login-implementation-2026-07-10.md`; Disk build: `swarm-report/yandex-disk-support-plan-2026-07-10.md` + `swarm-report/yandex-disk-support-implementation-2026-07-10.md`)
 
 ## Language
 
@@ -15,7 +15,7 @@ Decided 2026-06-20: documented OAuth, **not** token interception / private-endpo
 | Grant | authorization-code + PKCE/S256, **public client (no client_secret)** | high | yandex.com/dev/id/doc/en/codes/code-url |
 | Login transport (default) | loopback `http://localhost:8899` — system browser + local listener captures `?code=` | medium — fixed port, register 8899 | …/doc/en/register-client |
 | Fallback (headless / port busy) | device-authorization flow (`oauth.yandex.com/device/code` → `ya.ru/device`) | high | …/oauth/doc/dg/concepts/device-token |
-| Fallback (last resort) | manual-paste `verification_code` behind `--paste` | medium | …/register-client |
+| Fallback (last resort) | manual-paste `verification_code` behind `--manual --begin/--complete` — **built (D-013)** | high (build/unit/smoke-verified; live pending B-1/OQ-018) | `swarm-report/remote-headless-manual-login-plan-2026-06-20.md` |
 | OAuth library | `golang.org/x/oauth2` — native PKCE (`GenerateVerifier`/`S256ChallengeOption`/`VerifierOption`) + `DeviceAuth`; hand-set `Endpoint{authorize,token}` | high | pkg.go.dev/golang.org/x/oauth2 |
 | Token storage | OS keychain (`go-keyring`) only — never repo/logs (§12) | high | — |
 | Token lifetime | ~12-month access token (personal account); refresh returns new refresh_token | high (personal only) | …/tokens/refresh-client |
@@ -183,9 +183,32 @@ Disk v1 is implemented through the documented Yandex Disk REST API (`https://clo
 - `disk get` on a directory path returns a typed error; recursive download is v2.
 
 **Shared infra:**
-- `internal/netutil/client.go` — `IPv4Client()` extracted from 3-way duplication across forms/telemost/calendar (C-8 fix, D-012).
+- `internal/netutil/client.go` — `IPv4Client()` extracted from 3-way duplication across forms/telemost/calendar (C-8 fix, D-014).
 
 **Verification status (2026-07-10):** build/vet/`go test ./...` green; `--yes` gates smoke-confirmed. Live end-to-end blocked on B-1 (register disk scopes in OAuth app UI).
+
+## Built — Headless Manual Login (`--manual`)
+
+Headless two-step manual login for remote/VDS hosts where no browser loopback is reachable. Implemented on branch `feat/remote-headless-manual-login` (2026-07-10, D-013).
+
+**Commands:**
+- `yx360 login --manual --begin [--mail] [--mail-send] [--calendar] [--telemost] [--forms] [--disk]` — resolves profile/scopes same as the interactive flow, prints the Yandex auth URL, persists a 0600 pending-state file.
+- `yx360 login --manual --complete --code <code-or-redirect-url>` — exchanges the pasted authorization code via PKCE, stores the token in the resolved credential profile, deletes the pending-state file.
+
+**Key design choices:**
+- **`verification_code` redirect** (`https://oauth.yandex.ru/verification_code`) — Yandex displays the auth code in the browser for copy-paste; the operator pastes the bare code (or the full redirect URL). No local listener, no SSH tunnel required.
+- **Secretless PKCE exchange** — reuses `exchangeCode()` helper extracted from the loopback flow; no `client_secret` required.
+- **`ManualProvider`** — separate from the `Ladder`/`Provider` types; adds `Begin(ctx, opts)` + `Complete(ctx, codeOrURL)` instead of a single `Authenticate` call, leaving the default loopback/device path byte-for-byte unchanged.
+- **Pending-state file** — `UserConfigDir()/yx360/manual-login.json`, mode 0600, dir 0700, 10-min TTL; holds `{code_verifier, state, profile, scopes, clientID}`; deleted on `--complete` success and on failure; gitignored; verifier never printed.
+- **No silent plaintext** — `--complete` calls `selectStoreFor(profile)`; keychain errors on headless with the existing "re-run with --insecure-file-store" hint; `--insecure-file-store` must be explicit (B-2/OQ-006).
+
+**Verification status (2026-07-10):**
+- build / vet / `go test ./...` green; `--begin` smoke verified (PKCE S256, `verification_code` redirect, 0600 pending file, JSON = `{status, auth_url}` only — no verifier, no token).
+- **Live end-to-end NOT yet verified** — blocked on B-1 (register `https://oauth.yandex.ru/verification_code` in each OAuth app in Yandex UI — OQ-018).
+
+**Known limitations (v1):**
+- Single pending-state file (not profile-keyed) — two concurrent `--begin` clobber. Acceptable for single-user VDS.
+- `--code` on argv briefly visible in `ps`/shell history; code is single-use + 10-min TTL + immediately exchanged; stdin variant is a cheap future add.
 
 ## Detected at install
 
