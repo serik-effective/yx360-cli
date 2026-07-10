@@ -1,6 +1,6 @@
 # Stack
 
-> Last updated: 2026-06-20 (research: `swarm-report/research-yandex-360-oauth-cli-login-2026-06-20.md`; login build: `swarm-report/yx360-oauth-login-scaffold-implementation-2026-06-20.md`; Mail build: `swarm-report/mail-inbox-search-attachments-send-implementation-2026-06-20.md` + `swarm-report/mail-send-implementation-2026-06-20.md`; Calendar/Telemost build: `swarm-report/calendar-telemost-plan-2026-06-20.md` + `swarm-report/calendar-telemost-implementation-2026-06-20.md`)
+> Last updated: 2026-07-10 (research: `swarm-report/research-yandex-360-oauth-cli-login-2026-06-20.md`; login build: `swarm-report/yx360-oauth-login-scaffold-implementation-2026-06-20.md`; Mail build: `swarm-report/mail-inbox-search-attachments-send-implementation-2026-06-20.md` + `swarm-report/mail-send-implementation-2026-06-20.md`; Calendar/Telemost build: `swarm-report/calendar-telemost-plan-2026-06-20.md` + `swarm-report/calendar-telemost-implementation-2026-06-20.md`; Disk build: `swarm-report/yandex-disk-support-plan-2026-07-10.md` + `swarm-report/yandex-disk-support-implementation-2026-07-10.md`)
 
 ## Language
 
@@ -44,7 +44,8 @@ Decided 2026-06-20: documented OAuth, **not** token interception / private-endpo
 
 **Still verify empirically before code depends on it:**
 - **Contacts/CardDAV for personal accounts** — still unverified; Calendar CalDAV is resolved separately through `calendar:all`.
-- **Exact remaining non-Mail scope strings** (`cloud_api:disk.*`, `directory:*`, Telemost read/update scopes) — verify each against the live consent screen before building commands that need them.
+- **Disk OAuth scopes** (`cloud_api:disk.read`, `cloud_api:disk.write`) — scope strings come from docs + corroborated sources (R2 in plan-2026-07-10); **B-1 pending**: open oauth.yandex.ru Disk app, enable disk access checkboxes, confirm exact strings match. Until B-1 done, `login --disk` returns `invalid_scope`; live end-to-end blocked.
+- **Exact remaining non-Mail/non-Disk scope strings** (`directory:*`, Telemost read/update scopes) — verify each against the live consent screen before building commands that need them.
 - **Org / Directory scopes** — require Yandex 360 org + admin-enabled service app + written user consent. Personal accounts: Mail/Disk/Telemost self-scope only.
 
 ## Other components
@@ -52,7 +53,7 @@ Decided 2026-06-20: documented OAuth, **not** token interception / private-endpo
 | Concern | Candidate approach | Status |
 |---------|--------------------|--------|
 | CLI framework | `cobra` (actual: v1.10.2) | DECIDED (OQ-001 → D-003) |
-| API client | plain Go `net/http`; implemented for Calendar CalDAV and official Telemost create, still TODO for Disk/Directory | PARTIAL |
+| API client | plain Go `net/http`; implemented for Mail IMAP/SMTP, Calendar CalDAV, Telemost REST, Forms REST, and Disk REST; `internal/netutil.IPv4Client()` shared across all Yandex HTTP clients (D-006); still TODO for Directory | PARTIAL |
 | Distribution | Homebrew tap + GoReleaser | DECIDED, DEFERRED (post-login PR) |
 | Agent skill | `.claude/skills/`-style drop-in wrapping the CLI; reserve `--json` output convention at scaffold | DEFERRED |
 
@@ -146,6 +147,45 @@ Calendar/Telemost v1 is implemented through documented Calendar CalDAV plus the 
 - `logout` still clears only the default profile; profile-aware logout is follow-up work.
 - Calendar update cannot intentionally clear a string field to empty yet.
 - Calendar commands currently use event hrefs as IDs; stable but not ergonomic.
+
+## Built — Yandex Disk REST API
+
+Disk v1 is implemented through the documented Yandex Disk REST API (`https://cloud-api.yandex.net/v1/disk/`), not WebDAV.
+
+**Credential model:**
+- Separate `disk` credential profile and OAuth app (`YX360_DISK_CLIENT_ID`) per D-009 pattern.
+- Scopes: `cloud_api:disk.read` + `cloud_api:disk.write` (UI verification pending B-1).
+- `yx360 login --disk` requests these scopes.
+
+**Commands:**
+- `yx360 disk list [--path /] [--limit 20] [--offset N] [--json]`
+- `yx360 disk get <remote-path> [--out dir]`
+- `yx360 disk put <local-file> --to <remote-path> [--yes]`
+- `yx360 disk share <remote-path> [--yes]`
+- `yx360 disk unshare <remote-path>`
+- `yx360 disk rm <remote-path> [--yes] [--permanent]`
+- `yx360 disk mkdir <remote-path>`
+
+**Protocol choices:**
+- REST API at `https://cloud-api.yandex.net/v1/disk/`; auth `Authorization: OAuth <token>` (same header style as Calendar/Telemost/Forms).
+- `disk:` scheme auto-prepended by service layer; CLI accepts plain POSIX paths.
+- Download: two-step — get `href` → follow redirect; path-traversal protection via `filepath.Base`.
+- Upload: two-step — get upload URL (30-min TTL) → PUT content via `io.Copy` + `Content-Length`.
+- Delete: async — 202 Accepted + operation URL → poll up to 5×1s for `success|failed`.
+- Share: `PUT /v1/disk/resources/publish`; Unshare: `PUT /v1/disk/resources/unpublish`.
+- Network: IPv4-only per D-006 via shared `internal/netutil.IPv4Client()`.
+
+**Safety:**
+- `--yes` gates on `put` (overwrite on 409 Conflict), `share` (externally visible), `rm` (destructive).
+- Without `--yes`, prints a dry-run preview and exits non-zero — no interactive prompt (ANTI-2).
+- `rm` defaults to trash (`permanently=false`); `--permanent` for hard delete.
+- HTTP 413 (file too large: >1 GB standard / >50 GB Yandex 360) and 507 (quota full) map to human-readable errors.
+- `disk get` on a directory path returns a typed error; recursive download is v2.
+
+**Shared infra:**
+- `internal/netutil/client.go` — `IPv4Client()` extracted from 3-way duplication across forms/telemost/calendar (C-8 fix, D-012).
+
+**Verification status (2026-07-10):** build/vet/`go test ./...` green; `--yes` gates smoke-confirmed. Live end-to-end blocked on B-1 (register disk scopes in OAuth app UI).
 
 ## Detected at install
 

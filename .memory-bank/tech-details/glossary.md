@@ -41,3 +41,12 @@
 | Forms profile | The CLI credential profile (separate OAuth app) holding `forms:read` + `forms:write`, obtained with `yx360 login --forms`. |
 | X-Cloud-Org-Id | Alternative org header for Yandex Cloud organizations (non-numeric/hex org id); the CLI sends `X-Org-Id` for numeric org ids and `X-Cloud-Org-Id` for non-numeric ones. |
 | Forms public URL | A published survey is reachable at `https://forms.yandex.ru/cloud/<survey_id>`; answer stats at `https://forms.yandex.ru/cloud/admin/<survey_id>/answers?view=stats`. The API does not return these; the CLI derives them. |
+| Yandex Disk REST API | Documented REST API at `https://cloud-api.yandex.net/v1/disk/`, authenticated with `Authorization: OAuth <token>` (same header style as Calendar/Forms). Used by all `yx360 disk` commands. |
+| `cloud_api:disk.read` | Yandex OAuth scope for Disk read operations (list, get, share-status). Requested with `yx360 login --disk`. Scope strings sourced from docs; B-1 (live UI confirm) pending. |
+| `cloud_api:disk.write` | Yandex OAuth scope for Disk write operations (put, share, unshare, rm, mkdir). Requested together with `cloud_api:disk.read` via `yx360 login --disk`. |
+| Disk profile | The CLI credential profile (`disk`) for Disk OAuth tokens; separate OAuth app (`YX360_DISK_CLIENT_ID`) per D-009/D-012. Prevents scope collisions with mail/calendar-telemost/forms profiles. |
+| `disk:` scheme | Yandex Disk API path prefix required for all path parameters (e.g. `disk:/Documents/file.txt`). The `yx360 disk` service layer auto-prepends it; CLI accepts plain POSIX paths. |
+| `internal/netutil` | Shared Go package (`internal/netutil/client.go`) providing `IPv4Client()` — the project-wide `*http.Client` with forced `tcp4` dialing (D-006). Extracted in D-012 to eliminate 3-way duplication across forms/telemost/calendar. |
+| Two-step upload | Yandex Disk upload flow: (1) `GET /v1/disk/resources/upload?path=&overwrite=` returns a temporary upload URL (30-min TTL); (2) `PUT <url>` with file content (no auth header needed). Used by `disk put`. |
+| Two-step download | Yandex Disk download flow: (1) `GET /v1/disk/resources/download?path=` returns `{"href": "..."}` redirect URL; (2) `GET <href>` for content. Used by `disk get`. |
+| Async delete | Yandex Disk `DELETE /v1/disk/resources` returns 202 Accepted + `Location` operation URL when the delete is in progress. `disk rm` polls `GET <operation_url>` up to 5 times (1s intervals) until `status` is `success` or `failed`. |
