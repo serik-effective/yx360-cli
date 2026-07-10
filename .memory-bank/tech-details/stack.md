@@ -44,7 +44,7 @@ Decided 2026-06-20: documented OAuth, **not** token interception / private-endpo
 
 **Still verify empirically before code depends on it:**
 - **Contacts/CardDAV for personal accounts** — still unverified; Calendar CalDAV is resolved separately through `calendar:all`.
-- **Disk OAuth scopes** (`cloud_api:disk.read`, `cloud_api:disk.write`) — scope strings come from docs + corroborated sources (R2 in plan-2026-07-10); **B-1 pending**: open oauth.yandex.ru Disk app, enable disk access checkboxes, confirm exact strings match. Until B-1 done, `login --disk` returns `invalid_scope`; live end-to-end blocked.
+- **Disk OAuth scopes** — **confirmed 2026-07-10 (B-1 resolved)**: `cloud_api:disk.read` ("Чтение всего Диска") and `cloud_api:disk.write` ("Запись в любом месте на Диске") verified in Yandex OAuth app UI. Live end-to-end `login --disk → disk list` still pending (next step).
 - **Exact remaining non-Mail/non-Disk scope strings** (`directory:*`, Telemost read/update scopes) — verify each against the live consent screen before building commands that need them.
 - **Org / Directory scopes** — require Yandex 360 org + admin-enabled service app + written user consent. Personal accounts: Mail/Disk/Telemost self-scope only.
 
@@ -185,7 +185,9 @@ Disk v1 is implemented through the documented Yandex Disk REST API (`https://clo
 **Shared infra:**
 - `internal/netutil/client.go` — `IPv4Client()` extracted from 3-way duplication across forms/telemost/calendar (C-8 fix, D-014).
 
-**Verification status (2026-07-10):** build/vet/`go test ./...` green; `--yes` gates smoke-confirmed. Live end-to-end blocked on B-1 (register disk scopes in OAuth app UI).
+**Live-verified 2026-07-10:**
+- OAuth re-consent with Disk scopes (`cloud_api:disk.read` + `cloud_api:disk.write`) via `login --disk --manual --begin/--complete`.
+- `disk list` returned real files and directories from `serik.beysenov@effective.band` Яндекс Диск. B-1 fully resolved.
 
 ## Built — Headless Manual Login (`--manual`)
 
