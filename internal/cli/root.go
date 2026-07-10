@@ -27,6 +27,7 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newCalendarCmd())
 	root.AddCommand(newTelemostCmd())
 	root.AddCommand(newFormsCmd())
+	root.AddCommand(newDiskCmd())
 	return root
 }
 

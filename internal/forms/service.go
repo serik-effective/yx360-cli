@@ -7,14 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/effective-dev-os/yx360-cli/internal/auth"
 	"github.com/effective-dev-os/yx360-cli/internal/config"
+	"github.com/effective-dev-os/yx360-cli/internal/netutil"
 )
 
 var ErrReauthRequired = errors.New("forms: stored credential is missing, expired, or does not include the required forms scope; run yx360 login --forms")
@@ -66,7 +65,7 @@ type Survey struct {
 }
 
 func NewService(cfg config.Forms, cred *auth.Credential) *Service {
-	return &Service{cfg: cfg, cred: cred, client: ipv4Client()}
+	return &Service{cfg: cfg, cred: cred, client: netutil.IPv4Client()}
 }
 
 func (s *Service) ListResponses(ctx context.Context, surveyID string, pageSize int, pageToken string) (*ListResponsesResult, error) {
@@ -280,20 +279,3 @@ func decodeAnswer(item map[string]any) Answer {
 	return answer
 }
 
-func ipv4Client() *http.Client {
-	transport := &http.Transport{
-		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).DialContext,
-		ForceAttemptHTTP2:     true,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-	}
-	transport.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
-		return (&net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}).DialContext(ctx, "tcp4", address)
-	}
-	return &http.Client{Timeout: 30 * time.Second, Transport: transport}
-}

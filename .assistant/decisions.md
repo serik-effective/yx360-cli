@@ -184,3 +184,21 @@
 **Source:** `swarm-report/remote-headless-manual-login-plan-2026-06-20.md` (consilium: architect + skeptic + researcher + reviewer); `swarm-report/remote-headless-manual-login-implementation-2026-07-10.md`.
 **Closes:** nothing yet — OQ-018 (register redirect + live end-to-end verify) stays open until B-1 lands and a full `--begin → browser consent → --complete → token` run passes (ANTI-11).
 **Raises:** OQ-018.
+
+---
+
+## D-014 — Yandex Disk surface added (list/get/put/share/unshare/rm/mkdir + netutil refactor)
+**Date:** 2026-07-10
+**Status:** accepted
+**Decision:** `yx360` gains a Disk surface through the documented Yandex Disk REST API (`https://cloud-api.yandex.net/v1/disk/`, `Authorization: OAuth <token>`, IPv4 per D-006). Commands: `disk list [--path /] [--limit N] [--offset N]` (read, ungated, paginated), `disk get <remote-path> [--out dir]` (path-traversal-safe two-step download), `disk put <local-file> --to <path>` (two-step upload via `io.Copy`; `--yes` required to overwrite on 409 Conflict), `disk share <remote-path> --yes` (publish to public URL; human-gated per ANTI-2), `disk unshare <remote-path>` (revoke public URL, non-destructive, ungated), `disk rm <remote-path> --yes [--permanent]` (trash by default; human-gated; async 202 poll up to 5×1s), `disk mkdir <remote-path>` (non-recursive, ungated). Auth uses a separate `disk` credential profile and OAuth app (`YX360_DISK_CLIENT_ID`) with scopes `cloud_api:disk.read` + `cloud_api:disk.write` per D-009 pattern; obtained via `yx360 login --disk`. Refactored `ipv4Client()` — extracted shared `internal/netutil.IPv4Client()` from three-way duplication across `forms`, `telemost`, and `calendar` services, eliminating D-006 drift risk. Service handles 413 (file too large) and 507 (quota full) with human-readable messages; upload URL 30-min TTL covered by streaming `io.Copy`.
+**Why now:** Owner provisioned a Yandex OAuth app for Disk (`YX360_DISK_CLIENT_ID` set) immediately after the Forms live-verify (D-011), unblocking B-2. Disk is the core storage surface of Yandex 360 and the natural next surface after Mail/Calendar/Forms. The `ipv4Client()` duplication reached three copies during planning, triggering extraction now per C-8.
+**Alternatives rejected:**
+- WebDAV transport (`webdav.yandex.ru`): REST preferred for v1; public-link management, native `overwrite` param, and metadata queries are simpler via REST. WebDAV deferred; tracked in OQ-020.
+- Interactive `--yes` prompt on destructive/visible actions: rejected — non-interactive is mandatory for agent use (ANTI-2); non-`--yes` prints dry-run preview and exits non-zero.
+- Recursive directory download (`disk get` on directory path): out of scope v1; service returns typed error; recursive `disk pull` deferred to OQ-020.
+- Chunked/resumable upload: out of scope v1; two-step upload with streaming `io.Copy` covers most cases; OQ-019.
+- Single OAuth app for all scopes: rejected per D-009 precedent — Yandex returns `invalid_scope` for mixed scope sets across services.
+**Source:** `swarm-report/yandex-disk-support-plan-2026-07-10.md`, `swarm-report/yandex-disk-support-implementation-2026-07-10.md`. Consilium: architect + skeptic + researcher + reviewer (4/4 strict YAML). PR: https://github.com/serik-effective/yx360-cli/pull/4. Branch: `feat/yandex-disk-support`.
+**Verification status:** `go build` / `go vet ./...` / `go test ./...` all green; `disk --help` shows 7 subcommands; `--yes` gates smoke-confirmed (share/rm without `--yes` print preview + exit); `login --disk` starts OAuth flow → `invalid_scope` (expected: B-1 scope strings not yet registered in OAuth app UI). Not "done" per ANTI-11 until B-1 resolved and live `login --disk → disk list` passes.
+**Closes:** nothing previously open (OQ-019 and OQ-020 are newly raised by this feature).
+**Raises:** OQ-019 (chunked/resumable upload for large files), OQ-020 (WebDAV vs REST for future COPY/MOVE/recursive ops). OQ-011 now has a 4th un-cleared profile (`disk`).

@@ -14,6 +14,7 @@ const (
 	mailProfile             = "mail"
 	calendarTelemostProfile = "calendar-telemost"
 	formsProfile            = "forms"
+	diskProfile             = "disk"
 )
 
 func newLoginCmd() *cobra.Command {
@@ -25,6 +26,7 @@ func newLoginCmd() *cobra.Command {
 		calendarScope  bool
 		telemostScope  bool
 		formsScope     bool
+		diskScope      bool
 		manual         bool
 		manualBegin    bool
 		manualComplete bool
@@ -42,7 +44,7 @@ func newLoginCmd() *cobra.Command {
 					return errors.New("--manual requires exactly one of --begin or --complete")
 				}
 				if manualBegin {
-					profile, cfg, scopes, err := resolveManualTarget(mailScope, mailSendScope, calendarScope, telemostScope, formsScope)
+					profile, cfg, scopes, err := resolveManualTarget(mailScope, mailSendScope, calendarScope, telemostScope, formsScope, diskScope)
 					if err != nil {
 						return err
 					}
@@ -95,8 +97,11 @@ func newLoginCmd() *cobra.Command {
 			if formsScope {
 				selectedApps++
 			}
+			if diskScope {
+				selectedApps++
+			}
 			if selectedApps > 1 {
-				return errors.New("mail, calendar/telemost, and forms scopes use different Yandex OAuth apps; run separate login commands")
+				return errors.New("mail, calendar/telemost, forms, and disk scopes use different Yandex OAuth apps; run separate login commands")
 			}
 			profile := ""
 			if mailScope || mailSendScope {
@@ -116,6 +121,13 @@ func newLoginCmd() *cobra.Command {
 					return errors.New("no Forms OAuth client_id: set YX360_FORMS_CLIENT_ID")
 				}
 			}
+			if diskScope {
+				profile = diskProfile
+				cfg.ClientID = config.DiskClientID()
+				if cfg.ClientID == "" {
+					return errors.New("no Disk OAuth client_id: set YX360_DISK_CLIENT_ID")
+				}
+			}
 			scopes := append([]string(nil), cfg.Scopes...)
 			if mailScope {
 				scopes = append(scopes, config.MailReadScope)
@@ -131,6 +143,9 @@ func newLoginCmd() *cobra.Command {
 			}
 			if formsScope {
 				scopes = append(scopes, config.FormsReadScope, config.FormsWriteScope)
+			}
+			if diskScope {
+				scopes = append(scopes, config.DiskReadScope, config.DiskWriteScope)
 			}
 
 			loopback := auth.NewLoopbackProvider(cfg)
@@ -174,6 +189,7 @@ func newLoginCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&calendarScope, "calendar", false, "request Calendar access")
 	cmd.Flags().BoolVar(&telemostScope, "telemost", false, "request Telemost conference creation access")
 	cmd.Flags().BoolVar(&formsScope, "forms", false, "request Forms read and write access")
+	cmd.Flags().BoolVar(&diskScope, "disk", false, "request Disk read and write access")
 	cmd.Flags().BoolVar(&manual, "manual", false, "headless two-step login via manual code paste")
 	cmd.Flags().BoolVar(&manualBegin, "begin", false, "start manual login and print the auth URL")
 	cmd.Flags().BoolVar(&manualComplete, "complete", false, "finish manual login with the pasted code")
@@ -181,7 +197,7 @@ func newLoginCmd() *cobra.Command {
 	return cmd
 }
 
-func resolveManualTarget(mailScope, mailSendScope, calendarScope, telemostScope, formsScope bool) (string, config.OAuth, []string, error) {
+func resolveManualTarget(mailScope, mailSendScope, calendarScope, telemostScope, formsScope, diskScope bool) (string, config.OAuth, []string, error) {
 	cfg := config.Default()
 	selectedApps := 0
 	if mailScope || mailSendScope {
@@ -193,8 +209,11 @@ func resolveManualTarget(mailScope, mailSendScope, calendarScope, telemostScope,
 	if formsScope {
 		selectedApps++
 	}
+	if diskScope {
+		selectedApps++
+	}
 	if selectedApps > 1 {
-		return "", cfg, nil, errors.New("mail, calendar/telemost, and forms scopes use different Yandex OAuth apps; run separate login commands")
+		return "", cfg, nil, errors.New("mail, calendar/telemost, forms, and disk scopes use different Yandex OAuth apps; run separate login commands")
 	}
 	profile := ""
 	if mailScope || mailSendScope {
@@ -214,6 +233,13 @@ func resolveManualTarget(mailScope, mailSendScope, calendarScope, telemostScope,
 			return "", cfg, nil, errors.New("no Forms OAuth client_id: set YX360_FORMS_CLIENT_ID")
 		}
 	}
+	if diskScope {
+		profile = diskProfile
+		cfg.ClientID = config.DiskClientID()
+		if cfg.ClientID == "" {
+			return "", cfg, nil, errors.New("no Disk OAuth client_id: set YX360_DISK_CLIENT_ID")
+		}
+	}
 	scopes := append([]string(nil), cfg.Scopes...)
 	if mailScope {
 		scopes = append(scopes, config.MailReadScope)
@@ -229,6 +255,9 @@ func resolveManualTarget(mailScope, mailSendScope, calendarScope, telemostScope,
 	}
 	if formsScope {
 		scopes = append(scopes, config.FormsReadScope, config.FormsWriteScope)
+	}
+	if diskScope {
+		scopes = append(scopes, config.DiskReadScope, config.DiskWriteScope)
 	}
 	return profile, cfg, scopes, nil
 }

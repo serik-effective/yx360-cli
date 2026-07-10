@@ -38,6 +38,12 @@ type Forms struct {
 	WriteScope string
 }
 
+type Disk struct {
+	BaseURL    string
+	ReadScope  string
+	WriteScope string
+}
+
 const defaultClientID = ""
 const MailReadScope = "mail:imap_full"
 const MailSendScope = "mail:smtp"
@@ -45,6 +51,8 @@ const CalendarScope = "calendar:all"
 const TelemostCreateScope = "telemost-api:conferences.create"
 const FormsReadScope = "forms:read"
 const FormsWriteScope = "forms:write"
+const DiskReadScope = "cloud_api:disk.read"
+const DiskWriteScope = "cloud_api:disk.write"
 const VerificationCodeRedirectURI = "https://oauth.yandex.ru/verification_code"
 
 func CalendarClientID() string {
@@ -57,6 +65,10 @@ func FormsClientID() string {
 
 func FormsOrgID() string {
 	return os.Getenv("YX360_FORMS_ORG_ID")
+}
+
+func DiskClientID() string {
+	return os.Getenv("YX360_DISK_CLIENT_ID")
 }
 
 func Default() OAuth {
@@ -116,4 +128,12 @@ func DefaultForms() Forms {
 		baseURL = "https://api.forms.yandex.net"
 	}
 	return Forms{BaseURL: baseURL, OrgID: FormsOrgID(), ReadScope: FormsReadScope, WriteScope: FormsWriteScope}
+}
+
+func DefaultDisk() Disk {
+	baseURL := os.Getenv("YX360_DISK_API_URL")
+	if baseURL == "" {
+		baseURL = "https://cloud-api.yandex.net/v1/disk"
+	}
+	return Disk{BaseURL: baseURL, ReadScope: DiskReadScope, WriteScope: DiskWriteScope}
 }

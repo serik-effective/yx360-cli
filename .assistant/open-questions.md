@@ -41,10 +41,10 @@ Resolved: read-side Mail uses `mail:imap_full`; SMTP/send uses `mail:smtp`. Both
 
 ## OQ-011 — Profile-aware logout
 **Priority:** medium
-**Question:** Should `yx360 logout` clear all credential profiles by default, or expose profile-specific flags such as `--mail`, `--calendar-telemost`, and `--all`?
+**Question:** Should `yx360 logout` clear all credential profiles by default, or expose profile-specific flags such as `--mail`, `--calendar-telemost`, `--forms`, `--disk`, and `--all`?
 **Why it matters:** D-009 added separate `mail` and `calendar-telemost` credential profiles, while the existing logout command still clears only the legacy default credential slot.
-**Linked:** D-009, D-010; `swarm-report/calendar-telemost-implementation-2026-06-20.md`
-**Status:** open; decide before relying on logout for operational cleanup. **Update 2026-06-20 (D-010):** now a *third* un-cleared profile (`forms`) exists alongside `mail` and `calendar-telemost`; the gap widened.
+**Linked:** D-009, D-010, D-014; `swarm-report/calendar-telemost-implementation-2026-06-20.md`
+**Status:** open; decide before relying on logout for operational cleanup. **Update 2026-06-20 (D-010):** now a *third* un-cleared profile (`forms`) exists alongside `mail` and `calendar-telemost`; the gap widened. **Update 2026-07-10 (D-014):** fourth un-cleared profile `disk` added; profile-aware logout is now overdue.
 
 ## OQ-012 — Calendar event identifiers and field clearing
 **Priority:** low
@@ -90,7 +90,21 @@ Resolved: read-side Mail uses `mail:imap_full`; SMTP/send uses `mail:smtp`. Both
 
 ## OQ-018 — Register `verification_code` redirect + live end-to-end verify for `--manual`
 **Priority:** high
-**Question:** Has `https://oauth.yandex.ru/verification_code` been registered as a redirect URI in each Yandex OAuth app (mail, calendar-telemost, forms), and has the full `login --manual --begin → browser consent → --complete → token` flow been verified live against a real org account?
+**Question:** Has `https://oauth.yandex.ru/verification_code` been registered as a redirect URI in each Yandex OAuth app (mail, calendar-telemost, forms, disk), and has the full `login --manual --begin → browser consent → --complete → token` flow been verified live against a real org account?
 **Why it matters:** Yandex matches `redirect_uri` exactly and returns an error if the registered value does not match; no documented port-flexible loopback exists for this redirect. The `--manual` flow is build/unit/smoke-verified (PKCE, state, pending file 0600, secretless exchange via `exchangeCode()`) but is not "done" per ANTI-11 until a live round-trip confirms the `verification_code` display + code exchange succeed.
 **Linked:** D-013; `swarm-report/remote-headless-manual-login-implementation-2026-07-10.md`; `swarm-report/remote-headless-manual-login-plan-2026-06-20.md`
 **Status:** open; blocked on human B-task (register redirect in Yandex OAuth app UI for each app, then run live smoke).
+
+## OQ-019 — Chunked/resumable upload for large Disk files
+**Priority:** low
+**Question:** Is the Yandex Disk REST API's two-step upload (get upload URL → PUT content) sufficient for files approaching the 1 GB (standard) / 50 GB (Yandex 360) size limits, or does the CLI need to implement a chunked/resumable upload protocol?
+**Why it matters:** The current two-step upload streams via `io.Copy` with a 30-minute URL TTL. Very large files may exhaust this window, and the API may have undocumented chunk-size constraints. If resumable upload is needed, it requires a different flow.
+**Linked:** D-014; `swarm-report/yandex-disk-support-plan-2026-07-10.md` (N-1, C-11)
+**Status:** open; assess when a user first hits a timeout or 413 on a large file transfer.
+
+## OQ-020 — WebDAV vs REST for future Disk COPY/MOVE/recursive ops
+**Priority:** low
+**Question:** For future Disk operations (COPY, MOVE, recursive listing, recursive download), should `yx360` extend the existing REST client or add a WebDAV transport (`webdav.yandex.ru`, `Authorization: OAuth <token>`)?
+**Why it matters:** The Yandex Disk WebDAV interface supports PROPFIND/GET/PUT/MKCOL/DELETE/COPY/MOVE and uses the same auth header as CalDAV. COPY and MOVE may be simpler via WebDAV; REST is already implemented for v1 single-file ops. Choosing one transport for v2 ops avoids duplication.
+**Linked:** D-014; `swarm-report/yandex-disk-support-plan-2026-07-10.md` (N-4)
+**Status:** open; decide when COPY/MOVE or recursive download is next on the roadmap.
