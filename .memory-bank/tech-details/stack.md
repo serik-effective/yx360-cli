@@ -1,6 +1,6 @@
 # Stack
 
-> Last updated: 2026-07-10 (research: `swarm-report/research-yandex-360-oauth-cli-login-2026-06-20.md`; login build: `swarm-report/yx360-oauth-login-scaffold-implementation-2026-06-20.md`; Mail build: `swarm-report/mail-inbox-search-attachments-send-implementation-2026-06-20.md` + `swarm-report/mail-send-implementation-2026-06-20.md`; Calendar/Telemost build: `swarm-report/calendar-telemost-plan-2026-06-20.md` + `swarm-report/calendar-telemost-implementation-2026-06-20.md`; headless manual login: `swarm-report/remote-headless-manual-login-implementation-2026-07-10.md`; Disk build: `swarm-report/yandex-disk-support-plan-2026-07-10.md` + `swarm-report/yandex-disk-support-implementation-2026-07-10.md`)
+> Last updated: 2026-07-11 (research: `swarm-report/research-yandex-360-oauth-cli-login-2026-06-20.md`; login build: `swarm-report/yx360-oauth-login-scaffold-implementation-2026-06-20.md`; Mail build: `swarm-report/mail-inbox-search-attachments-send-implementation-2026-06-20.md` + `swarm-report/mail-send-implementation-2026-06-20.md`; Calendar/Telemost build: `swarm-report/calendar-telemost-plan-2026-06-20.md` + `swarm-report/calendar-telemost-implementation-2026-06-20.md`; headless manual login: `swarm-report/remote-headless-manual-login-implementation-2026-07-10.md`; Disk build: `swarm-report/yandex-disk-support-plan-2026-07-10.md` + `swarm-report/yandex-disk-support-implementation-2026-07-10.md`; dry-run build: `swarm-report/dry-run-plan-2026-07-10.md` + `swarm-report/dry-run-implementation-2026-07-11.md`)
 
 ## Language
 
@@ -216,3 +216,38 @@ Headless two-step manual login for remote/VDS hosts where no browser loopback is
 
 - Empty repository at install time — no `go.mod`, no source yet. Greenfield.
 - `git init` done at install (branch `main`). Future feature work lands on a branch → PR (ANTI-3 / §10).
+
+## Built — Persistent `--dry-run` flag
+
+Root-level `--dry-run` persistent flag (D-015) added across all mutating commands. Parallel to `--json` and `--insecure-file-store` in `root.go`.
+
+**Implementation:**
+- `var dryRun bool` global + `PersistentFlags().BoolVar(&dryRun, "dry-run", false, "print what would happen; overrides --yes")` in `internal/cli/root.go`.
+- `isDryRun() bool` + `emitDryRun(cmd *cobra.Command, msg string) error` helpers in `internal/cli/output.go`.
+- Each mutating `RunE` checks `isDryRun()` **before** any `!yes` gate or service call → `--dry-run` always wins.
+
+**Scope (v1):**
+
+| Command | `--dry-run` message |
+|---------|-------------------|
+| `disk put <file> --to <path>` | `would upload <file> to disk:<path>` |
+| `disk share <path>` | `would make disk:<path> publicly accessible` |
+| `disk unshare <path>` | `would revoke public access for disk:<path>` |
+| `disk rm <path>` | `would move to Trash/permanently delete disk:<path>` |
+| `disk mkdir <path>` | `would create directory disk:<path>` |
+| `mail send` | `would send to <to>: "<subject>"` |
+| `calendar create` | `would create event "<title>" at <starts-at>` |
+| `calendar update` | `would update event <href>` |
+| `calendar delete` | `would delete event <href>` |
+| `telemost create` | `would create Telemost conference` |
+
+**Output modes:**
+- Human: `[dry-run] <message>`
+- JSON (`--json`): `{"dry_run":"true","would":"<message>"}`
+- Both exit 0.
+
+**Exclusions (v1):** `login`/`logout` — silent no-op (no meaningful dry-run for OAuth). All read-only commands — silent no-op. `forms create/publish/unpublish` — deferred (OQ-021).
+
+**Files touched:** `internal/cli/root.go`, `internal/cli/output.go`, `internal/cli/disk.go`, `internal/cli/mail.go`, `internal/cli/calendar.go`.
+
+**Live-verified 2026-07-11:** `disk share --dry-run`, `disk rm --dry-run`, `disk rm --dry-run --yes` (dry-run wins), `disk share --dry-run --json`. `go build` / `go vet` / `go test ./...` all green.
