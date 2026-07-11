@@ -9,6 +9,7 @@ import (
 var (
 	jsonOutput        bool
 	insecureFileStore bool
+	dryRun            bool
 )
 
 func NewRootCmd() *cobra.Command {
@@ -20,6 +21,7 @@ func NewRootCmd() *cobra.Command {
 	}
 	root.PersistentFlags().BoolVar(&jsonOutput, "json", false, "emit machine-readable JSON")
 	root.PersistentFlags().BoolVar(&insecureFileStore, "insecure-file-store", false, "store the credential in a plaintext file instead of the OS keychain (headless/CI)")
+	root.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "print what would happen without executing; overrides --yes")
 
 	root.AddCommand(newLoginCmd())
 	root.AddCommand(newLogoutCmd())
