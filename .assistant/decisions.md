@@ -202,3 +202,21 @@
 **Verification status:** `go build` / `go vet ./...` / `go test ./...` all green; `disk --help` shows 7 subcommands; `--yes` gates smoke-confirmed. **Live-verified 2026-07-10 (ANTI-11 satisfied):** `login --disk --manual --begin/--complete` → `disk list` returned real files from `serik.beysenov@effective.band`. B-1 resolved: `cloud_api:disk.read` + `cloud_api:disk.write` confirmed in Yandex OAuth app UI and live.
 **Closes:** nothing previously open (OQ-019 and OQ-020 are newly raised by this feature).
 **Raises:** OQ-019 (chunked/resumable upload for large files), OQ-020 (WebDAV vs REST for future COPY/MOVE/recursive ops). OQ-011 now has a 4th un-cleared profile (`disk`).
+
+---
+
+## D-015 — Persistent `--dry-run` flag across all mutating commands
+
+**Date:** 2026-07-11
+**Status:** accepted
+**Decision:** Added a persistent root-level `--dry-run` flag (parallel to `--json` and `--insecure-file-store`) that prints what would happen without executing. `--dry-run` always overrides `--yes` when both are supplied — `isDryRun()` is checked BEFORE any `!yes` gate in each mutating `RunE`. Human output: `[dry-run] <message>`; JSON output: `{"dry_run":"true","would":"<message>"}`. Both exit 0. Scope: `disk put/share/unshare/rm/mkdir`, `mail send`, `calendar create/update/delete`, `telemost create`. `login`/`logout` get a silent no-op (no meaningful dry-run for OAuth). Read-only commands are also silent no-ops. `forms create/publish/unpublish` deferred to OQ-021.
+**Why now:** CI pipelines and agent scripts that always pass `--yes` need a way to validate what the CLI would do without side effects. Without `--yes` the CLI already prints a preview but exits 0 — agents cannot distinguish "previewed but did nothing" from "executed successfully". `--dry-run` closes this exit-code gap across all mutating commands regardless of `--yes`. Design follows gogcli pattern (exit 0, `[dry-run]` prefix, JSON `{"dry_run":"true"}`) confirmed by consulting `/tmp/gogcli` reference implementation.
+**Alternatives rejected:**
+- Relying on the existing non-`--yes` preview path: exits 0, so agents cannot distinguish preview from success — the concrete gap `--dry-run` closes.
+- Per-command `--dry-run` flags: inconsistent UX; persistent root flag matches the existing `--json`/`--insecure-file-store` pattern.
+- Service-layer dry-run parameter: rejected — dry-run is a CLI concern only; service layer must not know about it (architect plan finding).
+- Non-zero exit for `--dry-run`: rejected per gogcli pattern (exit 0 is correct; agents detect dry-run via JSON `dry_run` field or `[dry-run]` prefix in human output).
+- `forms create/publish/unpublish` in v1 scope: deferred — Forms mutations are lower priority; tracked in OQ-021.
+**Source:** `swarm-report/dry-run-plan-2026-07-10.md`, `swarm-report/dry-run-implementation-2026-07-11.md`. Consilium: architect × 2 + skeptic + reviewer + researcher × 2. PR: https://github.com/serik-effective/yx360-cli/pull/5. Branch: `feat/dry-run`.
+**Closes:** none (no prior OQs addressed this).
+**Raises:** OQ-021 (`--dry-run` for `forms create/publish/unpublish`).

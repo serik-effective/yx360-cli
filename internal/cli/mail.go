@@ -159,6 +159,9 @@ func newMailSendCmd() *cobra.Command {
 				}
 				opts.Text = string(body)
 			}
+			if isDryRun() {
+				return emitDryRun(cmd, fmt.Sprintf("would send to %s: %q", strings.Join(opts.To, ","), opts.Subject))
+			}
 			if !yes {
 				if err := confirmSend(cmd, opts); err != nil {
 					return err

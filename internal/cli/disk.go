@@ -92,6 +92,9 @@ func newDiskPutCmd() *cobra.Command {
 			if remotePath == "" {
 				return errors.New("disk: --to is required")
 			}
+			if isDryRun() {
+				return emitDryRun(cmd, fmt.Sprintf("would upload %s to disk:%s", args[0], remotePath))
+			}
 			svc, err := diskService(cmd)
 			if err != nil {
 				return err
@@ -125,6 +128,9 @@ func newDiskShareCmd() *cobra.Command {
 		Short: "Create a public link for a file or directory",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if isDryRun() {
+				return emitDryRun(cmd, fmt.Sprintf("would make disk:%s publicly accessible", args[0]))
+			}
 			if !yes {
 				cmd.Println("disk share preview:")
 				cmd.Printf("  Path: %s\n  Note: this will create a publicly accessible URL\n", args[0])
@@ -153,6 +159,9 @@ func newDiskUnshareCmd() *cobra.Command {
 		Short: "Remove public access from a file or directory",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if isDryRun() {
+				return emitDryRun(cmd, fmt.Sprintf("would revoke public access for disk:%s", args[0]))
+			}
 			svc, err := diskService(cmd)
 			if err != nil {
 				return err
@@ -177,6 +186,13 @@ func newDiskRmCmd() *cobra.Command {
 		Short: "Move a file or directory to Trash (use --permanent to delete immediately)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if isDryRun() {
+				action := "move to Trash"
+				if permanent {
+					action = "permanently delete"
+				}
+				return emitDryRun(cmd, fmt.Sprintf("would %s disk:%s", action, args[0]))
+			}
 			if !yes {
 				action := "move to Trash (reversible)"
 				if permanent {
@@ -213,6 +229,9 @@ func newDiskMkdirCmd() *cobra.Command {
 		Short: "Create a directory on Yandex Disk (parent must exist)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if isDryRun() {
+				return emitDryRun(cmd, fmt.Sprintf("would create directory disk:%s", args[0]))
+			}
 			svc, err := diskService(cmd)
 			if err != nil {
 				return err

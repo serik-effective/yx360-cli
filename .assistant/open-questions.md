@@ -108,3 +108,10 @@ Resolved: read-side Mail uses `mail:imap_full`; SMTP/send uses `mail:smtp`. Both
 **Why it matters:** The Yandex Disk WebDAV interface supports PROPFIND/GET/PUT/MKCOL/DELETE/COPY/MOVE and uses the same auth header as CalDAV. COPY and MOVE may be simpler via WebDAV; REST is already implemented for v1 single-file ops. Choosing one transport for v2 ops avoids duplication.
 **Linked:** D-014; `swarm-report/yandex-disk-support-plan-2026-07-10.md` (N-4)
 **Status:** open; decide when COPY/MOVE or recursive download is next on the roadmap.
+
+## OQ-021 — `--dry-run` for `forms create/publish/unpublish`
+**Priority:** medium
+**Question:** Should `--dry-run` be implemented for `forms create`, `forms publish`, and `forms unpublish` commands?
+**Why it matters:** D-015 added `--dry-run` to all major mutating surfaces (disk/mail/calendar/telemost) but explicitly deferred the `forms` write commands. The Forms API has externally-visible mutations (creating and publishing surveys) that could benefit from dry-run validation in CI pipelines, consistent with the broader `--dry-run` pattern.
+**Linked:** D-015; `swarm-report/dry-run-plan-2026-07-10.md` (Out-of-scope section)
+**Status:** open; implement as a follow-up PR after PR #5 (`feat/dry-run`) is merged.

@@ -94,6 +94,13 @@ func newCalendarCreateCmd() *cobra.Command {
 			if event.Title == "" {
 				return errors.New("calendar: --title is required")
 			}
+			if isDryRun() {
+				msg := fmt.Sprintf("would create event %q", event.Title)
+				if !event.StartsAt.IsZero() {
+					msg += " at " + event.StartsAt.Format(time.RFC3339)
+				}
+				return emitDryRun(cmd, msg)
+			}
 			if len(roomNames) > 0 {
 				rooms, err := resolveCalendarRooms(roomNames)
 				if err != nil {
@@ -169,6 +176,9 @@ func newCalendarUpdateCmd() *cobra.Command {
 				}
 				patch.Rooms = rooms
 				fillRoomLocation(&patch)
+			}
+			if isDryRun() {
+				return emitDryRun(cmd, "would update event "+args[0])
 			}
 			if !yes {
 				if err := confirmCalendarMutation(cmd, "Update calendar event?", patch, false); err != nil {
@@ -291,6 +301,9 @@ func newCalendarDeleteCmd() *cobra.Command {
 		Short: "Delete a calendar event",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if isDryRun() {
+				return emitDryRun(cmd, "would delete event "+args[0])
+			}
 			svc, err := calendarService(cmd)
 			if err != nil {
 				return err
@@ -330,6 +343,9 @@ func newTelemostCreateCmd() *cobra.Command {
 		Use:   "create",
 		Short: "Create a Telemost conference",
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if isDryRun() {
+				return emitDryRun(cmd, "would create Telemost conference")
+			}
 			if !yes {
 				cmd.Println("Telemost create preview:")
 				cmd.Println("  Waiting room: PUBLIC")
