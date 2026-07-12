@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -60,7 +61,7 @@ func newFormsQuestionsAddCmd() *cobra.Command {
 					return err
 				}
 			}
-			svc, err := formsService(cmd)
+			svc, err := formsService(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -88,7 +89,7 @@ func newFormsResponsesCmd() *cobra.Command {
 		Short: "List responses for a survey",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			svc, err := formsService(cmd)
+			svc, err := formsService(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -121,7 +122,7 @@ func newFormsCreateCmd() *cobra.Command {
 					return err
 				}
 			}
-			svc, err := formsService(cmd)
+			svc, err := formsService(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -150,7 +151,7 @@ func newFormsPublishCmd() *cobra.Command {
 					return err
 				}
 			}
-			svc, err := formsService(cmd)
+			svc, err := formsService(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -178,7 +179,7 @@ func newFormsUnpublishCmd() *cobra.Command {
 					return err
 				}
 			}
-			svc, err := formsService(cmd)
+			svc, err := formsService(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -218,7 +219,7 @@ func formsAnswersURL(surveyID string) string {
 	return "https://forms.yandex.ru/cloud/admin/" + surveyID + "/answers?view=stats"
 }
 
-func formsService(cmd *cobra.Command) (*forms.Service, error) {
+func formsService(ctx context.Context) (*forms.Service, error) {
 	if config.FormsClientID() == "" {
 		return nil, errors.New("forms: no Forms OAuth client_id: set YX360_FORMS_CLIENT_ID")
 	}
@@ -229,7 +230,7 @@ func formsService(cmd *cobra.Command) (*forms.Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	cred, err := store.Load(cmd.Context())
+	cred, err := store.Load(ctx)
 	if err != nil {
 		if errors.Is(err, tokenstore.ErrNoCredential) {
 			return nil, forms.ErrReauthRequired

@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"os"
+
 	"github.com/spf13/cobra"
 
 	"github.com/effective-dev-os/yx360-cli/internal/tokenstore"
@@ -30,6 +32,7 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newTelemostCmd())
 	root.AddCommand(newFormsCmd())
 	root.AddCommand(newDiskCmd())
+	root.AddCommand(newMCPCmd())
 	return root
 }
 
@@ -38,7 +41,7 @@ func selectStore() (tokenstore.TokenStore, error) {
 }
 
 func selectStoreFor(profile string) (tokenstore.TokenStore, error) {
-	if insecureFileStore {
+	if insecureFileStore || os.Getenv("YX360_INSECURE_FILE_STORE") == "1" {
 		return tokenstore.NewFileStoreFor(profile)
 	}
 	return tokenstore.NewKeyringStoreFor(profile), nil

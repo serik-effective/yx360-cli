@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -37,7 +38,7 @@ func newDiskListCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List directory contents on Yandex Disk",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			svc, err := diskService(cmd)
+			svc, err := diskService(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -64,7 +65,7 @@ func newDiskGetCmd() *cobra.Command {
 			if outDir == "" {
 				outDir = "."
 			}
-			svc, err := diskService(cmd)
+			svc, err := diskService(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -95,7 +96,7 @@ func newDiskPutCmd() *cobra.Command {
 			if isDryRun() {
 				return emitDryRun(cmd, fmt.Sprintf("would upload %s to disk:%s", args[0], remotePath))
 			}
-			svc, err := diskService(cmd)
+			svc, err := diskService(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -137,7 +138,7 @@ func newDiskShareCmd() *cobra.Command {
 				cmd.Println("Re-run with --yes to proceed.")
 				return nil
 			}
-			svc, err := diskService(cmd)
+			svc, err := diskService(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -162,7 +163,7 @@ func newDiskUnshareCmd() *cobra.Command {
 			if isDryRun() {
 				return emitDryRun(cmd, fmt.Sprintf("would revoke public access for disk:%s", args[0]))
 			}
-			svc, err := diskService(cmd)
+			svc, err := diskService(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -203,7 +204,7 @@ func newDiskRmCmd() *cobra.Command {
 				cmd.Println("Re-run with --yes to proceed.")
 				return nil
 			}
-			svc, err := diskService(cmd)
+			svc, err := diskService(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -232,7 +233,7 @@ func newDiskMkdirCmd() *cobra.Command {
 			if isDryRun() {
 				return emitDryRun(cmd, fmt.Sprintf("would create directory disk:%s", args[0]))
 			}
-			svc, err := diskService(cmd)
+			svc, err := diskService(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -246,7 +247,7 @@ func newDiskMkdirCmd() *cobra.Command {
 	return cmd
 }
 
-func diskService(cmd *cobra.Command) (*disk.Service, error) {
+func diskService(ctx context.Context) (*disk.Service, error) {
 	if config.DiskClientID() == "" {
 		return nil, errors.New("disk: no Disk OAuth client_id: set YX360_DISK_CLIENT_ID")
 	}
@@ -254,7 +255,7 @@ func diskService(cmd *cobra.Command) (*disk.Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	cred, err := store.Load(cmd.Context())
+	cred, err := store.Load(ctx)
 	if err != nil {
 		if errors.Is(err, tokenstore.ErrNoCredential) {
 			return nil, disk.ErrReauthRequired
