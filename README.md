@@ -22,6 +22,16 @@
 - `yx360 forms create` — создание формы (с подтверждением).
 - `yx360 forms questions add <survey-id>` — добавление вопроса типа `rating` (оценка 1..N), `text` или `integer` (с подтверждением).
 - `yx360 forms publish/unpublish <survey-id>` — публикация и снятие с публикации (с подтверждением).
+- `yx360 login --disk` — вход с правами на чтение и запись Яндекс Диска.
+- `yx360 disk list [--path /] [--limit N]` — список файлов и папок.
+- `yx360 disk get <path> [--out dir]` — скачать файл.
+- `yx360 disk put <local-file> --to <path> [--yes]` — загрузить файл.
+- `yx360 disk share <path> [--yes]` — открыть публичный доступ.
+- `yx360 disk unshare <path>` — закрыть публичный доступ.
+- `yx360 disk rm <path> [--yes] [--permanent]` — удалить (по умолчанию в корзину; `--permanent` — навсегда).
+- `yx360 disk mkdir <path>` — создать папку.
+- `--dry-run` — глобальный флаг: вывести, что будет сделано, без выполнения. Перекрывает `--yes`.
+- `yx360 mcp serve` — MCP stdio сервер: 14 инструментов для Диска, Почты, Календаря и Telemost через JSON-RPC 2.0.
 
 Отправка письма по умолчанию останавливается на предпросмотре и спрашивает подтверждение. Флаг `--yes` нужен только для случаев, где человек уже явно согласовал адресатов, тему, текст и вложения.
 
@@ -88,6 +98,21 @@ forms:write
 export YX360_FORMS_CLIENT_ID=<forms-client-id>
 export YX360_FORMS_ORG_ID=<org-id>
 ./bin/yx360 login --forms
+```
+
+Четвертое приложение — для Яндекс Диска:
+
+```text
+login:info
+cloud_api:disk.read
+cloud_api:disk.write
+```
+
+Его client id передается через `YX360_DISK_CLIENT_ID`:
+
+```bash
+export YX360_DISK_CLIENT_ID=<disk-client-id>
+./bin/yx360 login --disk
 ```
 
 В настройках Яндекс 360 Почты должен быть разрешен доступ почтовых клиентов по IMAP/SMTP и OAuth-токенам. Если это выключено, IMAP/SMTP-аутентификация не пройдет даже с валидным OAuth-токеном.
@@ -168,6 +193,73 @@ done
 
 `survey-id` передается явно: команды «список всех форм» нет — у API Форм нет документированного эндпоинта перечисления. `forms create` задает только заголовок; вопросы добавляются отдельно через `forms questions add` (`--type rating|text|integer`, по умолчанию `rating` — оценка 1..N, radio).
 
+## Диск
+
+```bash
+./bin/yx360 disk list
+./bin/yx360 disk list --path /Документы --limit 50
+./bin/yx360 disk get /Документы/отчет.pdf --out ./downloads
+./bin/yx360 disk put report.pdf --to /Документы/отчет.pdf
+./bin/yx360 disk share /Документы/отчет.pdf
+./bin/yx360 disk unshare /Документы/отчет.pdf
+./bin/yx360 disk rm /Документы/черновик.txt
+./bin/yx360 disk rm /Документы/черновик.txt --permanent
+./bin/yx360 disk mkdir /Документы/Архив
+```
+
+`disk put` запрашивает подтверждение при перезаписи (`--yes` — явное согласие). `disk share` — при открытии публичного доступа. `disk rm` — при удалении. `--permanent` отправляет файл в обход корзины (необратимо).
+
+Пути передаются без префикса `disk:` — он добавляется автоматически. Скачивание папки не поддерживается; `disk get` вернет ошибку, если путь указывает на директорию.
+
+## --dry-run
+
+Глобальный флаг `--dry-run` работает для всех мутирующих команд: вместо выполнения печатает, что было бы сделано, и завершается с кодом 0.
+
+```bash
+./bin/yx360 disk put report.pdf --to /Документы/отчет.pdf --dry-run
+./bin/yx360 disk share /Документы/отчет.pdf --dry-run
+./bin/yx360 disk rm /Документы/черновик.txt --dry-run
+./bin/yx360 mail send --to user@example.com --subject "Тест" --body "Текст" --dry-run
+./bin/yx360 calendar create --title "Встреча" --starts-at 2026-07-15T10:00:00+06:00 --ends-at 2026-07-15T10:30:00+06:00 --dry-run
+./bin/yx360 telemost create --dry-run
+```
+
+`--dry-run` перекрывает `--yes`: `disk rm --yes --dry-run` ничего не удалит.
+
+Вывод:
+- Обычный: `[dry-run] would upload report.pdf to disk:/Документы/отчет.pdf`
+- JSON (`--json --dry-run`): `{"dry_run":"true","would":"..."}`
+
+Читающие команды (`disk list`, `mail list`, `calendar list` и т.д.) молча игнорируют `--dry-run` — они и так ничего не меняют.
+
+## MCP stdio сервер
+
+`yx360 mcp serve` запускает MCP stdio сервер (JSON-RPC 2.0 через stdin/stdout). Любой MCP-клиент — Claude Desktop, OpenCode, кастомный агент — может подключиться без shell-обёрток.
+
+```bash
+./bin/yx360 mcp serve
+```
+
+**14 инструментов (4 поверхности):**
+
+| Поверхность | Инструменты |
+|-------------|-------------|
+| Диск | `disk_list`, `disk_get`, `disk_put`, `disk_share`, `disk_unshare`, `disk_rm`, `disk_mkdir` |
+| Почта | `mail_list`, `mail_search`, `mail_read` |
+| Календарь | `calendar_list`, `calendar_get`, `calendar_create` |
+| Telemost | `telemost_create` |
+
+Мутирующие инструменты принимают параметр `confirmed: bool`. При `confirmed=false` возвращают dry-run превью без выполнения действия. При `confirmed=true` — выполняют.
+
+OAuth-токены вырезаются из всех сообщений об ошибках перед отправкой клиенту.
+
+**Конфигурация для headless-режима (агент на VDS):**
+
+```bash
+export YX360_INSECURE_FILE_STORE=1  # plaintext-хранилище токенов, если нет системного keychain
+./bin/yx360 mcp serve
+```
+
 ## JSON
 
 ```bash
@@ -195,6 +287,11 @@ done
 - Бронирование переговорок не делает Directory/org lookup и не ищет свободные слоты. CLI использует только локальный справочник комнат и статус, который вернет Calendar.
 - Telemost-ссылку можно создать, но отмена/удаление конференции через официальный API пока не подтверждена.
 - OpenClaw пока отмечен как docs-compatible, но отдельный executable smoke для адаптера `yx360` в OpenClaw не запускался.
+- `disk get` скачивает только файлы; директория вернет ошибку. Рекурсивное скачивание — v2.
+- `disk put` не поддерживает chunked/resumable upload: файлы > 1 ГБ (стандарт) / > 50 ГБ (Яндекс 360) вернут HTTP 413.
+- COPY/MOVE/рекурсивное удаление через Disk REST API не реализованы; эти операции через WebDAV — отложено (OQ-020).
+- `yx360 mcp serve` не реализует обновление токена при истечении: долгоживущий сервер потребует перезапуска и повторного `yx360 login` (OQ-022).
+- `forms create/publish/unpublish` пока не поддерживают `--dry-run` (OQ-021).
 
 ## Переменные окружения
 
@@ -205,7 +302,9 @@ done
 | `YX360_CLIENT_ID` | `login`, почта | client id почтового/дефолтного OAuth-приложения |
 | `YX360_CALENDAR_CLIENT_ID` | `login --calendar`/`--telemost` | client id приложения Calendar+Telemost |
 | `YX360_FORMS_CLIENT_ID` | `login --forms`, `forms *` | client id приложения форм |
+| `YX360_DISK_CLIENT_ID` | `login --disk`, `disk *` | client id приложения Яндекс Диска |
 | `YX360_FORMS_ORG_ID` | `forms *` | id организации; уходит в `X-Org-Id` (числовой) или `X-Cloud-Org-Id` (нечисловой) |
+| `YX360_INSECURE_FILE_STORE` | опц. | любое непустое значение — включает plaintext-хранилище токенов (0600); для headless/VDS без системного keychain (эквивалент флага `--insecure-file-store`) |
 | `YX360_CONFIG_HOME` | опц. | переопределить config-root (файловое хранилище токена, справочник комнат) |
 | `YX360_IMAP_HOST` / `YX360_SMTP_HOST` | опц. | хосты почты (по умолчанию `imap.yandex.ru` / `smtp.yandex.ru`) |
 | `YX360_CALDAV_URL` | опц. | база CalDAV (по умолчанию `https://caldav.yandex.ru`) |

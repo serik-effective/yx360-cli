@@ -14,6 +14,9 @@ This document defines the stable, agent-facing usage contract for `yx360`. Agent
 - Telemost commands require the same `calendar-telemost` profile containing `telemost-api:conferences.create`; obtain it with `yx360 login --telemost`.
 - `YX360_FORMS_CLIENT_ID` and `YX360_FORMS_ORG_ID` must be set for `yx360 login --forms` and all `forms` commands. The Forms API is available only to Yandex 360 for Business organizations. The org id is sent as `X-Org-Id` when numeric, or `X-Cloud-Org-Id` when non-numeric (Yandex Cloud org). There is no auto-discovery; an invalid org id returns an `organization required` / `user not in organization` API error.
 - `forms` commands require a stored `forms` profile credential containing `forms:read` and `forms:write`; obtain it with `yx360 login --forms`.
+- `YX360_DISK_CLIENT_ID` must be set for `yx360 login --disk` and all `disk` commands.
+- `disk` commands require a stored `disk` profile credential containing `cloud_api:disk.read` and `cloud_api:disk.write`; obtain it with `yx360 login --disk`.
+- On headless hosts without an OS keychain, set `YX360_INSECURE_FILE_STORE=1` (or pass `--insecure-file-store`) before running `yx360 mcp serve` or any command that stores credentials. This writes tokens as plaintext `0600` files under the user config directory.
 
 Credentials are stored in the OS keychain by default. Agents must not read the keychain blob directly; use CLI commands.
 
@@ -35,7 +38,9 @@ Use environment variables for headless/CI/agent deployment; command-line flags o
 | `YX360_CLIENT_ID` | `login`, Mail | OAuth client id of the Mail/default app |
 | `YX360_CALENDAR_CLIENT_ID` | `login --calendar`/`--telemost` | OAuth client id of the Calendar+Telemost app |
 | `YX360_FORMS_CLIENT_ID` | `login --forms`, `forms *` | OAuth client id of the Forms app |
+| `YX360_DISK_CLIENT_ID` | `login --disk`, `disk *`, `mcp serve` (disk tools) | OAuth client id of the Yandex Disk app |
 | `YX360_FORMS_ORG_ID` | `forms *` | Yandex 360 org id; sent as `X-Org-Id`/`X-Cloud-Org-Id` |
+| `YX360_INSECURE_FILE_STORE` | optional | Any non-empty value enables plaintext token file (`0600`); equivalent to `--insecure-file-store` flag. Required for headless hosts (VDS, CI, MCP server) without an OS keychain. |
 | `YX360_CONFIG_HOME` | optional | Override config root (token file store, room registry) |
 | `YX360_IMAP_HOST` / `YX360_SMTP_HOST` | optional | Override Mail hosts (default `imap.yandex.ru` / `smtp.yandex.ru`) |
 | `YX360_CALDAV_URL` | optional | Override CalDAV base (default `https://caldav.yandex.ru`) |
@@ -71,6 +76,16 @@ yx360 --json forms create --title "Survey title" --yes
 yx360 --json forms questions add <survey-id> --label "Контент" --rating 5 --yes
 yx360 --json forms publish <survey-id> --yes
 yx360 --json forms unpublish <survey-id> --yes
+yx360 --json disk list --path / --limit 50
+yx360 --json disk list --path /Documents
+yx360 --json disk get /Documents/report.pdf --out ./downloads
+yx360 --json disk put report.pdf --to /Documents/report.pdf --yes
+yx360 --json disk share /Documents/report.pdf --yes
+yx360 --json disk unshare /Documents/report.pdf
+yx360 --json disk rm /Documents/draft.txt --yes
+yx360 --json disk rm /Documents/draft.txt --yes --permanent
+yx360 --json disk mkdir /Documents/Archive
+yx360 --json disk put report.pdf --to /Documents/report.pdf --dry-run
 ```
 
 Current JSON output is pretty-printed JSON on stdout. The shape is command-specific and contains non-secret result fields only, for example:
@@ -91,6 +106,14 @@ Current JSON output is pretty-printed JSON on stdout. The shape is command-speci
 - `forms create`: `id`, optional `title`, `public_url`, `answers_url`.
 - `forms questions add`: the created question object (`id`, `type`, `label`, `widget`, `items[]` with `id`/`label`/`slug`).
 - `forms publish`/`forms unpublish`: `survey_id`, `status` (`published` or `unpublished`); `publish` also returns `public_url` and `answers_url`.
+- `disk list`: `items` array; each item has `name`, `path`, `type` (`dir` or `file`), optional `size`, optional `mime_type`, optional `created`, optional `modified`, optional `public_url`.
+- `disk get`: `path` (local path where the file was written).
+- `disk put`: `status`, `path` (remote path).
+- `disk share`: `status`, `public_url`.
+- `disk unshare`: `status`.
+- `disk rm`: `status`.
+- `disk mkdir`: `status`, `path`.
+- `--dry-run` (any mutating command): `{"dry_run":"true","would":"<description of what would happen>"}`. Exit code 0.
 
 Public links are derived by the CLI (the API does not return them): a published form is at `https://forms.yandex.ru/cloud/<survey_id>`, answer stats at `https://forms.yandex.ru/cloud/admin/<survey_id>/answers?view=stats`.
 
@@ -190,6 +213,51 @@ Agents may pass `--yes` only after the user has explicitly approved the exact ac
 Use the `href` returned by `calendar list` or `calendar create` as `<event-href>` for `calendar read`, `calendar update`, and `calendar delete`. Do not invent short IDs.
 
 Calendar uses CalDAV with `Authorization: OAuth <token>`, not `Bearer <token>`. Agents must not assume generic bearer auth when diagnosing Calendar requests.
+
+## Dry Run
+
+The global `--dry-run` flag causes any mutating command to print what it would do without executing. Exit code is always `0`.
+
+- Human output: `[dry-run] <message>`
+- JSON output (`--json --dry-run`): `{"dry_run":"true","would":"<message>"}`
+- `--dry-run` overrides `--yes` when both are passed.
+- Read-only commands silently ignore `--dry-run`.
+- `forms create/publish/unpublish` do not yet implement `--dry-run` (deferred, OQ-021).
+
+Agents may use `--dry-run` to preview destructive or externally-visible actions before requesting user confirmation.
+
+## MCP Stdio Server
+
+`yx360 mcp serve` starts a JSON-RPC 2.0 MCP server over stdin/stdout. Any MCP-aware host (Claude Desktop, OpenCode, custom agents) can connect without shell-exec wrappers.
+
+**Startup:**
+
+```bash
+# interactive host (OS keychain available)
+yx360 mcp serve
+
+# headless VDS (no keychain)
+YX360_INSECURE_FILE_STORE=1 yx360 mcp serve
+```
+
+**Tool inventory (14 tools):**
+
+| Surface | Tools |
+|---------|-------|
+| Disk | `disk_list`, `disk_get`, `disk_put`, `disk_share`, `disk_unshare`, `disk_rm`, `disk_mkdir` |
+| Mail | `mail_list`, `mail_search`, `mail_read` |
+| Calendar | `calendar_list`, `calendar_get`, `calendar_create` |
+| Telemost | `telemost_create` |
+
+**`confirmed` parameter:** all mutating tools (`disk_put`, `disk_share`, `disk_unshare`, `disk_rm`, `disk_mkdir`, `calendar_create`, `telemost_create`) require a `confirmed: bool` parameter. When `false`, the tool returns a dry-run preview and takes no action. When `true`, the tool executes. Agents must obtain explicit user approval before passing `confirmed=true`.
+
+**Token safety:** OAuth tokens are stripped from all error strings before they reach the MCP client (INVARIANT §12). MCP clients must not receive raw token values in error payloads.
+
+**stdout:** `yx360 mcp serve` redirects cobra's stdout to stderr on startup so the MCP transport owns stdout cleanly. All cobra diagnostic output goes to stderr.
+
+**Credential loading:** each tool call loads the relevant credential profile lazily (mail, calendar-telemost, disk). Missing credentials return a typed error naming the exact `yx360 login` command to run.
+
+**Token expiry:** token refresh is not implemented. A long-running MCP server that hits an expired token will return a credential error; the operator must run `yx360 login <profile>` and restart the server (OQ-022).
 
 ## Plaintext Token Warning
 
