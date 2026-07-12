@@ -115,3 +115,10 @@ Resolved: read-side Mail uses `mail:imap_full`; SMTP/send uses `mail:smtp`. Both
 **Why it matters:** D-015 added `--dry-run` to all major mutating surfaces (disk/mail/calendar/telemost) but explicitly deferred the `forms` write commands. The Forms API has externally-visible mutations (creating and publishing surveys) that could benefit from dry-run validation in CI pipelines, consistent with the broader `--dry-run` pattern.
 **Linked:** D-015; `swarm-report/dry-run-plan-2026-07-10.md` (Out-of-scope section)
 **Status:** open; implement as a follow-up PR after PR #5 (`feat/dry-run`) is merged.
+
+## OQ-022 — MCP credential refresh strategy
+**Priority:** medium
+**Question:** When a stored OAuth credential expires during a long-running `yx360 mcp serve` session, what should happen? The current implementation calls service factories per-request (credentials re-loaded each call), but expired tokens will return API errors rather than triggering a re-auth flow.
+**Why it matters:** MCP servers are long-lived processes (attached to Claude Desktop all day). A token that expires mid-session will silently fail tool calls with an auth error — confusing to the user who will see a tool error rather than a login prompt.
+**Linked:** D-016; `swarm-report/mcp-stdio-server-implementation-2026-07-12.md`
+**Status:** open; assess once real MCP usage reveals how often tokens expire in practice. Options: (a) surface auth errors as informative tool errors with login instructions, (b) implement silent token refresh in service layer, (c) add a `yx360_login` MCP tool that triggers OAuth PKCE flow.

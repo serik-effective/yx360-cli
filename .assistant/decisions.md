@@ -220,3 +220,20 @@
 **Source:** `swarm-report/dry-run-plan-2026-07-10.md`, `swarm-report/dry-run-implementation-2026-07-11.md`. Consilium: architect × 2 + skeptic + reviewer + researcher × 2. PR: https://github.com/serik-effective/yx360-cli/pull/5. Branch: `feat/dry-run`.
 **Closes:** none (no prior OQs addressed this).
 **Raises:** OQ-021 (`--dry-run` for `forms create/publish/unpublish`).
+
+---
+
+## D-016 — MCP stdio server: 15 yx360 tools via JSON-RPC 2.0
+
+**Date:** 2026-07-12
+**Status:** accepted
+**Decision:** Added `yx360 mcp serve` — a JSON-RPC 2.0 MCP stdio server using `github.com/modelcontextprotocol/go-sdk v1.6.1` (official Go SDK). 15 tools across 4 surfaces: disk (7), mail (3), calendar+telemost (5), forms (4). All mutating tools require a `confirmed=true` parameter; without it they return a `[dry-run]` preview (ANTI-2 compliance). OAuth tokens are stripped from all error messages before returning to MCP clients (INVARIANT-§12). All cobra output is redirected to stderr so stdout stays clean for the JSON-RPC stream.
+**Why now:** Claude Desktop and other MCP-compatible clients need a typed programmatic interface to yx360 services. The CLI already has all service implementations; the MCP layer is a thin protocol adapter. Implementing now enables Claude-native automation of Yandex 360 workflows without shell subprocess chaining.
+**Alternatives rejected:**
+- HTTP/SSE transport instead of stdio: more complex (requires a listening port, firewall rules); stdio is the standard for local desktop clients.
+- Embed MCP tools in `internal/cli/` directly: rejected — keeps `internal/mcp/` package cleanly separated, avoids circular imports, and lets the MCP server be tested independently of cobra.
+- Raw `server.AddTool` (untyped): rejected in favour of typed `mcp.AddTool` with input structs for schema inference and compile-time safety.
+- Per-tool credential caching: rejected — service factories are called per-request to ensure credentials are always fresh; token refresh is OQ-022.
+**Source:** `swarm-report/mcp-stdio-server-implementation-2026-07-12.md`. PR: https://github.com/serik-effective/yx360-cli/pull/6. Branch: `feat/mcp-stdio-server`.
+**Closes:** none (new feature).
+**Raises:** OQ-022 (MCP token expiry — proactive credential refresh strategy).

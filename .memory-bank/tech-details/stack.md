@@ -1,6 +1,6 @@
 # Stack
 
-> Last updated: 2026-07-11 (research: `swarm-report/research-yandex-360-oauth-cli-login-2026-06-20.md`; login build: `swarm-report/yx360-oauth-login-scaffold-implementation-2026-06-20.md`; Mail build: `swarm-report/mail-inbox-search-attachments-send-implementation-2026-06-20.md` + `swarm-report/mail-send-implementation-2026-06-20.md`; Calendar/Telemost build: `swarm-report/calendar-telemost-plan-2026-06-20.md` + `swarm-report/calendar-telemost-implementation-2026-06-20.md`; headless manual login: `swarm-report/remote-headless-manual-login-implementation-2026-07-10.md`; Disk build: `swarm-report/yandex-disk-support-plan-2026-07-10.md` + `swarm-report/yandex-disk-support-implementation-2026-07-10.md`; dry-run build: `swarm-report/dry-run-plan-2026-07-10.md` + `swarm-report/dry-run-implementation-2026-07-11.md`)
+> Last updated: 2026-07-12 (research: `swarm-report/research-yandex-360-oauth-cli-login-2026-06-20.md`; login build: `swarm-report/yx360-oauth-login-scaffold-implementation-2026-06-20.md`; Mail build: `swarm-report/mail-inbox-search-attachments-send-implementation-2026-06-20.md` + `swarm-report/mail-send-implementation-2026-06-20.md`; Calendar/Telemost build: `swarm-report/calendar-telemost-plan-2026-06-20.md` + `swarm-report/calendar-telemost-implementation-2026-06-20.md`; headless manual login: `swarm-report/remote-headless-manual-login-implementation-2026-07-10.md`; Disk build: `swarm-report/yandex-disk-support-plan-2026-07-10.md` + `swarm-report/yandex-disk-support-implementation-2026-07-10.md`; dry-run build: `swarm-report/dry-run-plan-2026-07-10.md` + `swarm-report/dry-run-implementation-2026-07-11.md`; MCP stdio server build: 2026-07-12)
 
 ## Language
 
@@ -31,6 +31,7 @@ Decided 2026-06-20: documented OAuth, **not** token interception / private-endpo
 - `github.com/emersion/go-imap/v2` v2.0.0-beta.8
 - `github.com/emersion/go-message` v0.18.2
 - `github.com/emersion/go-sasl` v0.0.0-20241020182733-b788ff22d5a6
+- `github.com/modelcontextprotocol/go-sdk` v1.6.1
 
 **Live-verified 2026-06-20** (D-004): `yx360 login` round-trips against a real Yandex 360 account. OAuth host is **`oauth.yandex.ru`** — `.com` does not show RU accounts. PKCE code-exchange works with no secret.
 
@@ -251,3 +252,37 @@ Root-level `--dry-run` persistent flag (D-015) added across all mutating command
 **Files touched:** `internal/cli/root.go`, `internal/cli/output.go`, `internal/cli/disk.go`, `internal/cli/mail.go`, `internal/cli/calendar.go`.
 
 **Live-verified 2026-07-11:** `disk share --dry-run`, `disk rm --dry-run`, `disk rm --dry-run --yes` (dry-run wins), `disk share --dry-run --json`. `go build` / `go vet` / `go test ./...` all green.
+
+## Built — MCP stdio server (`yx360 mcp serve`)
+
+MCP v1 exposes 15 tools across 4 surfaces through a JSON-RPC 2.0 stdio transport, making `yx360` usable from any MCP-aware host (Claude Desktop, OpenCode, custom agents) without shell-exec wrappers.
+
+**New dependency:** `github.com/modelcontextprotocol/go-sdk` v1.6.1 (official Go MCP SDK).
+
+**Package layout:**
+```
+internal/mcp/server.go           — NewServer() factory, registers all 15 tools
+internal/mcp/tools_disk.go       — Disk tools
+internal/mcp/tools_mail.go       — Mail tools
+internal/mcp/tools_calendar.go   — Calendar tools
+internal/mcp/tools_forms.go      — Forms tools
+```
+
+**Package name:** `yx360mcp` (distinct from `cli` to avoid import cycles).
+
+**Command:** `yx360 mcp serve` — new Cobra sub-command; starts the JSON-RPC 2.0 stdio server and blocks until stdin closes. No flags.
+
+**Transport:** `mcp.StdioTransport{}` — newline-delimited JSON on stdin/stdout. MCP host process owns the lifecycle; the server exits when stdin is closed.
+
+**Tool inventory (15 tools, 4 surfaces):**
+
+| Surface | File | Tool count |
+|---------|------|-----------|
+| Disk | `tools_disk.go` | part of 15 total |
+| Mail | `tools_mail.go` | part of 15 total |
+| Calendar | `tools_calendar.go` | part of 15 total |
+| Forms | `tools_forms.go` | part of 15 total |
+
+**Safety:**
+- Mutating tools accept a `confirmed bool` parameter. When `false`, the tool returns a dry-run preview and takes no action (ANTI-2, same gate as `--yes` in the CLI).
+- All error strings are filtered through a `tokenRe` regexp before being returned to the MCP client, ensuring OAuth tokens are never leaked in error payloads (INVARIANT-§12).
