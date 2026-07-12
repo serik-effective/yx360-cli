@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -36,7 +37,7 @@ func newMailListCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List mailbox messages",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			svc, err := mailService(cmd)
+			svc, err := mailService(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -67,7 +68,7 @@ func newMailSearchCmd() *cobra.Command {
 				}
 				q.Since = parsed
 			}
-			svc, err := mailService(cmd)
+			svc, err := mailService(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -94,7 +95,7 @@ func newMailReadCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			svc, err := mailService(cmd)
+			svc, err := mailService(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -123,7 +124,7 @@ func newMailAttachmentCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			svc, err := mailService(cmd)
+			svc, err := mailService(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -167,7 +168,7 @@ func newMailSendCmd() *cobra.Command {
 					return err
 				}
 			}
-			svc, err := mailService(cmd)
+			svc, err := mailService(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -213,7 +214,7 @@ func newMailUnsubscribeCmd() *cobra.Command {
 			if yes && method == "" {
 				return fmt.Errorf("mail: --yes requires --method")
 			}
-			svc, err := mailService(cmd)
+			svc, err := mailService(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -253,12 +254,12 @@ func addMailQueryFlags(cmd *cobra.Command, q *mail.Query, search bool) {
 	}
 }
 
-func mailService(cmd *cobra.Command) (*mail.Service, error) {
+func mailService(ctx context.Context) (*mail.Service, error) {
 	store, err := selectStoreFor(mailProfile)
 	if err != nil {
 		return nil, err
 	}
-	cred, err := store.Load(cmd.Context())
+	cred, err := store.Load(ctx)
 	if err != nil {
 		if errors.Is(err, tokenstore.ErrNoCredential) {
 			return nil, mail.ErrReauthRequired

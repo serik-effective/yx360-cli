@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -39,7 +40,7 @@ func newCalendarListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			svc, err := calendarService(cmd)
+			svc, err := calendarService(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -61,7 +62,7 @@ func newCalendarReadCmd() *cobra.Command {
 		Short: "Read one calendar event",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			svc, err := calendarService(cmd)
+			svc, err := calendarService(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -121,7 +122,7 @@ func newCalendarCreateCmd() *cobra.Command {
 				}
 			}
 			if withTelemost {
-				tm, err := telemostService(cmd)
+				tm, err := telemostService(cmd.Context())
 				if err != nil {
 					return err
 				}
@@ -136,7 +137,7 @@ func newCalendarCreateCmd() *cobra.Command {
 				event.URL = conference.JoinURL
 				event.Description = strings.TrimSpace(strings.ReplaceAll(event.Description, "Telemost link will be created during apply.", linkText))
 			}
-			svc, err := calendarService(cmd)
+			svc, err := calendarService(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -185,7 +186,7 @@ func newCalendarUpdateCmd() *cobra.Command {
 					return err
 				}
 			}
-			svc, err := calendarService(cmd)
+			svc, err := calendarService(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -270,7 +271,7 @@ func newCalendarRoomsDiscoverCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			svc, err := calendarService(cmd)
+			svc, err := calendarService(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -304,7 +305,7 @@ func newCalendarDeleteCmd() *cobra.Command {
 			if isDryRun() {
 				return emitDryRun(cmd, "would delete event "+args[0])
 			}
-			svc, err := calendarService(cmd)
+			svc, err := calendarService(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -353,7 +354,7 @@ func newTelemostCreateCmd() *cobra.Command {
 					return err
 				}
 			}
-			svc, err := telemostService(cmd)
+			svc, err := telemostService(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -449,12 +450,12 @@ func parseTimeValue(value string) (time.Time, error) {
 	return time.Parse("2006-01-02", value)
 }
 
-func calendarService(cmd *cobra.Command) (*calendar.Service, error) {
+func calendarService(ctx context.Context) (*calendar.Service, error) {
 	store, err := selectStoreFor(calendarTelemostProfile)
 	if err != nil {
 		return nil, err
 	}
-	cred, err := store.Load(cmd.Context())
+	cred, err := store.Load(ctx)
 	if err != nil {
 		if errors.Is(err, tokenstore.ErrNoCredential) {
 			return nil, calendar.ErrReauthRequired
@@ -464,12 +465,12 @@ func calendarService(cmd *cobra.Command) (*calendar.Service, error) {
 	return calendar.NewService(config.DefaultCalendar(), cred), nil
 }
 
-func telemostService(cmd *cobra.Command) (*telemost.Service, error) {
+func telemostService(ctx context.Context) (*telemost.Service, error) {
 	store, err := selectStoreFor(calendarTelemostProfile)
 	if err != nil {
 		return nil, err
 	}
-	cred, err := store.Load(cmd.Context())
+	cred, err := store.Load(ctx)
 	if err != nil {
 		if errors.Is(err, tokenstore.ErrNoCredential) {
 			return nil, telemost.ErrReauthRequired
