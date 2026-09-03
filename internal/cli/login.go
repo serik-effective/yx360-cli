@@ -31,11 +31,23 @@ func newLoginCmd() *cobra.Command {
 		manualBegin    bool
 		manualComplete bool
 		manualCode     string
+		appPassword    bool
+		account        string
 	)
 	cmd := &cobra.Command{
 		Use:   "login",
 		Short: "Sign in to Yandex 360 via OAuth",
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if appPassword {
+				if manual || device || noBrowser {
+					return errors.New("--app-password cannot be combined with --manual, --device, or --no-browser")
+				}
+				profile, err := appPasswordProfile(mailScope, mailSendScope, calendarScope, telemostScope, formsScope, diskScope)
+				if err != nil {
+					return err
+				}
+				return runAppPasswordLogin(cmd, profile, account)
+			}
 			if manual {
 				if device {
 					return errors.New("--manual cannot be combined with --device")
@@ -194,6 +206,8 @@ func newLoginCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&manualBegin, "begin", false, "start manual login and print the auth URL")
 	cmd.Flags().BoolVar(&manualComplete, "complete", false, "finish manual login with the pasted code")
 	cmd.Flags().StringVar(&manualCode, "code", "", "authorization code or full redirect URL for --manual --complete")
+	cmd.Flags().BoolVar(&appPassword, "app-password", false, "sign in with a Yandex app password instead of OAuth (--mail or --calendar only)")
+	cmd.Flags().StringVar(&account, "account", "", "full account address for --app-password, e.g. user@example.com")
 	return cmd
 }
 
@@ -271,6 +285,7 @@ type loginPayload struct {
 	Status  string   `json:"status"`
 	Account string   `json:"account"`
 	Profile string   `json:"profile,omitempty"`
+	Auth    string   `json:"auth,omitempty"`
 	Scopes  []string `json:"scopes"`
 	Expiry  string   `json:"expiry,omitempty"`
 }
@@ -283,6 +298,9 @@ func humanLogin(p loginPayload) string {
 	msg := "Signed in as " + account
 	if p.Profile != "" {
 		msg += " (" + p.Profile + ")"
+	}
+	if p.Auth == string(auth.GrantAppPassword) {
+		msg += " using an app password; it does not expire — revoke it at " + auth.AppPasswordURL
 	}
 	if p.Expiry != "" {
 		msg += "; token expires " + p.Expiry

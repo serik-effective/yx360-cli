@@ -237,3 +237,22 @@
 **Source:** `swarm-report/mcp-stdio-server-implementation-2026-07-12.md`. PR: https://github.com/serik-effective/yx360-cli/pull/6. Branch: `feat/mcp-stdio-server`.
 **Closes:** none (new feature).
 **Raises:** OQ-022 (MCP token expiry — proactive credential refresh strategy).
+
+---
+
+## D-017 — App-password auth for Mail and Calendar (partial reversal of D-008)
+
+**Date:** 2026-09-04
+**Status:** accepted
+**Decision:** `yx360 login --app-password --mail|--calendar` stores a Yandex app password (`https://id.yandex.ru/security/app-passwords`) and uses it for IMAP (`SASL PLAIN`), SMTP (`smtp.PlainAuth`), and CalDAV (`Authorization: Basic`). App passwords live in their own credential profiles (`mail-app-password`, `calendar-app-password`) and take precedence over the OAuth credential of the same surface; the OAuth profiles are untouched, so `telemost create` keeps working from `calendar-telemost`. The password is never accepted as a flag — only `YX360_APP_PASSWORD` or stdin — and login verifies it live (IMAP session for Mail, CalDAV `PROPFIND` principal walk for Calendar) before storing it. `logout --app-password [--mail|--calendar]` clears it.
+**Why now:** Owner asked for app-password auth to remove the per-surface OAuth-app registration burden (`YX360_CLIENT_ID`, `YX360_CALENDAR_CLIENT_ID`) from the normal path. D-008 rejected app passwords for v1 on the grounds of "documented OAuth, no extra user-managed mail secret"; the owner reversed that trade after being shown the scope and security consequences.
+**Alternatives rejected:**
+- App-password auth for every surface: impossible. Telemost, Forms, and Disk are REST APIs (`cloud-api.yandex.net`, `api.forms.yandex.net`) that accept `Authorization: OAuth <token>` only. The CLI rejects `--app-password` with those flags.
+- Rewriting Disk onto `webdav.yandex.ru` to reach app-password parity: rejected as out-of-scope — it loses the REST publish/share operations and WebDAV support for 360-org accounts is unverified (related: OQ-020).
+- Replacing OAuth for Mail/Calendar: rejected — the OAuth flows stay as the fallback and as the only path for Telemost.
+- Password as a CLI flag: rejected — flag values leak into shell history and `ps`.
+**Security note:** An app password is a long-lived, non-expiring secret with no scope list; it grants full access to its service. It is stored in the OS keychain like the OAuth tokens (plaintext file only behind `--insecure-file-store`) and is never printed. Revocation is manual, at `https://id.yandex.ru/security/app-passwords`.
+**Source:** this session (2026-09-04). Code: `internal/auth/app_password.go`, `internal/cli/app_password.go`, `internal/mail/service.go`, `internal/mail/send.go`, `internal/calendar/service.go`.
+**Closes:** none.
+**Raises:** OQ-023 (live end-to-end verification of app-password IMAP/SMTP/CalDAV against a real Yandex 360 account).
+

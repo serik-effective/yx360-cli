@@ -122,3 +122,14 @@ Resolved: read-side Mail uses `mail:imap_full`; SMTP/send uses `mail:smtp`. Both
 **Why it matters:** MCP servers are long-lived processes (attached to Claude Desktop all day). A token that expires mid-session will silently fail tool calls with an auth error — confusing to the user who will see a tool error rather than a login prompt.
 **Linked:** D-016; `swarm-report/mcp-stdio-server-implementation-2026-07-12.md`
 **Status:** open; assess once real MCP usage reveals how often tokens expire in practice. Options: (a) surface auth errors as informative tool errors with login instructions, (b) implement silent token refresh in service layer, (c) add a `yx360_login` MCP tool that triggers OAuth PKCE flow.
+
+---
+
+## OQ-023 — Live verification of app-password auth (Mail IMAP/SMTP, Calendar CalDAV)
+
+**Raised:** 2026-09-04 (D-017)
+**Status:** open
+**Question:** Does a Yandex app password authenticate against `imap.yandex.ru` (SASL `PLAIN`), `smtp.yandex.ru` (`AUTH PLAIN` over implicit TLS), and `caldav.yandex.ru` (HTTP `Basic`) for a Yandex 360 account, and does a Mail-typed password get rejected by CalDAV as assumed?
+**Why it matters:** The code paths are unit-covered only. If Yandex 360 org policy disables app passwords, or CalDAV needs a different login form than the full address, `login --app-password` fails at the verification step and the OAuth path stays the only option.
+**How to resolve:** Create a Mail password and a Calendar password at `https://id.yandex.ru/security/app-passwords`, run `yx360 login --app-password --mail` / `--calendar`, then `yx360 mail list`, `yx360 mail send --dry-run`, `yx360 calendar list`.
+

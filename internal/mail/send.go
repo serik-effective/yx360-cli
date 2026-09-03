@@ -18,6 +18,8 @@ import (
 	"time"
 
 	mailmessage "github.com/emersion/go-message/mail"
+
+	"github.com/effective-dev-os/yx360-cli/internal/auth"
 )
 
 const maxSendAttachmentBytes int64 = 25 << 20
@@ -42,7 +44,7 @@ type SendResult struct {
 }
 
 func (s *Service) Send(ctx context.Context, opts SendOptions) (*SendResult, error) {
-	if s.cred == nil || !s.cred.Valid() || !s.cred.HasScopes(s.cfg.SendScope) {
+	if !s.cred.UsableFor(s.cfg.SendScope) {
 		return nil, ErrSendReauthRequired
 	}
 	if opts.From == "" {
@@ -77,7 +79,7 @@ func (s *Service) Send(ctx context.Context, opts SendOptions) (*SendResult, erro
 }
 
 func (s *Service) SendGeneratedUnsubscribe(ctx context.Context, mailtoURI string) (*SendResult, error) {
-	if s.cred == nil || !s.cred.Valid() || !s.cred.HasScopes(s.cfg.SendScope) {
+	if !s.cred.UsableFor(s.cfg.SendScope) {
 		return nil, ErrSendReauthRequired
 	}
 	parsed, err := parseMailtoUnsubscribe(mailtoURI)
@@ -273,10 +275,8 @@ func (s *Service) sendSMTP(ctx context.Context, from string, recipients []string
 	}
 	defer client.Close()
 
-	if err := client.Auth(newSMTPOAuth2Auth("XOAUTH2", s.cred.Account, s.cred.AccessToken)); err != nil {
-		if fallbackErr := client.Auth(newSMTPOAuth2Auth("OAUTHBEARER", s.cred.Account, s.cred.AccessToken)); fallbackErr != nil {
-			return fmt.Errorf("mail: SMTP OAuth authentication failed: %w", err)
-		}
+	if err := s.authSMTP(client); err != nil {
+		return err
 	}
 	if err := client.Mail(from); err != nil {
 		return err
@@ -298,6 +298,21 @@ func (s *Service) sendSMTP(ctx context.Context, from string, recipients []string
 		return err
 	}
 	return client.Quit()
+}
+
+func (s *Service) authSMTP(client *smtp.Client) error {
+	if s.cred.IsAppPassword() {
+		if err := client.Auth(smtp.PlainAuth("", s.cred.Account, s.cred.AppPassword, s.cfg.SMTPHost)); err != nil {
+			return fmt.Errorf("mail: SMTP app-password authentication failed (password must be created for Mail at %s): %w", auth.AppPasswordURL, err)
+		}
+		return nil
+	}
+	if err := client.Auth(newSMTPOAuth2Auth("XOAUTH2", s.cred.Account, s.cred.AccessToken)); err != nil {
+		if fallbackErr := client.Auth(newSMTPOAuth2Auth("OAUTHBEARER", s.cred.Account, s.cred.AccessToken)); fallbackErr != nil {
+			return fmt.Errorf("mail: SMTP OAuth authentication failed: %w", err)
+		}
+	}
+	return nil
 }
 
 type smtpOAuth2Auth struct {
