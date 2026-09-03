@@ -255,11 +255,7 @@ func addMailQueryFlags(cmd *cobra.Command, q *mail.Query, search bool) {
 }
 
 func mailService(ctx context.Context) (*mail.Service, error) {
-	store, err := selectStoreFor(mailProfile)
-	if err != nil {
-		return nil, err
-	}
-	cred, err := store.Load(ctx)
+	cred, err := loadCredential(ctx, mailAppPasswordProfile, mailProfile)
 	if err != nil {
 		if errors.Is(err, tokenstore.ErrNoCredential) {
 			return nil, mail.ErrReauthRequired

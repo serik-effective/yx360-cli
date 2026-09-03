@@ -90,6 +90,30 @@ export YX360_FORMS_ORG_ID=<org-id>
 ./bin/yx360 login --forms
 ```
 
+## Вход по паролю приложения
+
+Для Почты и Календаря OAuth-приложение можно не заводить: `id.yandex.ru/security/app-passwords` выдает пароль приложения, который принимают IMAP, SMTP и CalDAV.
+
+```bash
+./bin/yx360 login --app-password --mail --account user@example.com
+./bin/yx360 login --app-password --calendar --account user@example.com
+```
+
+Пароль приложения нельзя передать флагом — он утечет в history и `ps`. CLI берет его из `YX360_APP_PASSWORD` либо читает из stdin (в терминале — со скрытым вводом). Адрес аккаунта можно задать через `YX360_ACCOUNT` вместо `--account`.
+
+Яндекс выдает отдельный пароль на каждый сервис, поэтому Почта и Календарь логинятся раздельно. Перед сохранением CLI проверяет пароль живым подключением: IMAP для Почты, CalDAV PROPFIND для Календаря.
+
+Пароли приложений лежат в отдельных профилях (`mail-app-password`, `calendar-app-password`) и имеют приоритет над OAuth-токеном того же сервиса. OAuth-профиль при этом остается на месте — он нужен `telemost create`, у которого пути через пароль приложения нет.
+
+```bash
+./bin/yx360 logout --app-password            # оба пароля
+./bin/yx360 logout --app-password --mail     # только почтовый
+```
+
+Пароль приложения не истекает — отзывать его нужно вручную на `https://id.yandex.ru/security/app-passwords`. У него нет scope: он дает полный доступ к своему сервису, поэтому OAuth остается более узким вариантом.
+
+Telemost, Формы и Диск — REST API (`cloud-api.yandex.net`, `api.forms.yandex.net`), пароли приложений там не принимаются; для них по-прежнему нужен OAuth.
+
 В настройках Яндекс 360 Почты должен быть разрешен доступ почтовых клиентов по IMAP/SMTP и OAuth-токенам. Если это выключено, IMAP/SMTP-аутентификация не пройдет даже с валидным OAuth-токеном.
 
 Почта и Calendar/Telemost входят отдельно. Яндекс отклоняет смесь почтовых, календарных и Telemost-scope в одном OAuth-приложении, поэтому CLI хранит два токена в разных профилях.
@@ -179,7 +203,7 @@ done
 
 ## Хранение токена
 
-По умолчанию токены лежат в системном keychain. Почта и Calendar/Telemost хранятся раздельно, потому что для них нужны разные OAuth-приложения. Для headless/CI есть флаг `--insecure-file-store`, но он пишет credential в plaintext-файл с правами `0600`.
+По умолчанию токены и пароли приложений лежат в системном keychain. Почта и Calendar/Telemost хранятся раздельно, потому что для них нужны разные OAuth-приложения. Для headless/CI есть флаг `--insecure-file-store`, но он пишет credential в plaintext-файл с правами `0600`.
 
 Не включайте `--insecure-file-store` по привычке. С mail-scope токен дает доступ к почте, а с `mail:smtp` еще и к отправке писем.
 
@@ -202,6 +226,8 @@ done
 
 | Переменная | Нужна для | Назначение |
 |---|---|---|
+| `YX360_APP_PASSWORD` | `login --app-password` | пароль приложения; альтернатива вводу из stdin |
+| `YX360_ACCOUNT` | `login --app-password` | полный адрес аккаунта, если не задан `--account` |
 | `YX360_CLIENT_ID` | `login`, почта | client id почтового/дефолтного OAuth-приложения |
 | `YX360_CALENDAR_CLIENT_ID` | `login --calendar`/`--telemost` | client id приложения Calendar+Telemost |
 | `YX360_FORMS_CLIENT_ID` | `login --forms`, `forms *` | client id приложения форм |

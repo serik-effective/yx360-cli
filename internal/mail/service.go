@@ -29,8 +29,9 @@ import (
 const maxReadBytes = 10 << 20
 
 var (
-	ErrReauthRequired = errors.New("mail: stored credential is missing, expired, or does not include mail:imap_full; run yx360 login --mail")
-	ErrMailboxSetup   = errors.New("mail: IMAP OAuth authentication failed; enable mail-client access and app passwords/OAuth tokens in Yandex 360 Mail settings, then run yx360 login --mail")
+	ErrReauthRequired      = errors.New("mail: stored credential is missing, expired, or does not include mail:imap_full; run yx360 login --mail")
+	ErrMailboxSetup        = errors.New("mail: IMAP OAuth authentication failed; enable mail-client access and app passwords/OAuth tokens in Yandex 360 Mail settings, then run yx360 login --mail")
+	ErrAppPasswordRejected = errors.New("mail: IMAP app-password authentication failed; check the account address and that the password was created for Mail at " + auth.AppPasswordURL)
 )
 
 type Service struct {
@@ -74,6 +75,17 @@ type Attachment struct {
 
 func NewService(cfg config.Mail, cred *auth.Credential) *Service {
 	return &Service{cfg: cfg, cred: cred}
+}
+
+// Verify opens an authenticated IMAP session so a login flow can reject bad
+// credentials before storing them.
+func (s *Service) Verify(ctx context.Context) error {
+	c, err := s.connect(ctx)
+	if err != nil {
+		return err
+	}
+	defer c.Close()
+	return c.Logout().Wait()
 }
 
 func (s *Service) List(ctx context.Context, q Query) ([]Message, error) {
@@ -166,7 +178,7 @@ func (s *Service) search(ctx context.Context, q Query, filtered bool) ([]Message
 }
 
 func (s *Service) connect(ctx context.Context) (*imapclient.Client, error) {
-	if s.cred == nil || !s.cred.Valid() || !s.cred.HasScopes(s.cfg.ReadScope) {
+	if !s.cred.UsableFor(s.cfg.ReadScope) {
 		return nil, ErrReauthRequired
 	}
 	if err := ctx.Err(); err != nil {
@@ -180,6 +192,13 @@ func (s *Service) connect(ctx context.Context) (*imapclient.Client, error) {
 	c, err := dialTLS4(address, options)
 	if err != nil {
 		return nil, err
+	}
+	if s.cred.IsAppPassword() {
+		if err := c.Authenticate(sasl.NewPlainClient("", s.cred.Account, s.cred.AppPassword)); err != nil {
+			c.Close()
+			return nil, fmt.Errorf("%w: %v", ErrAppPasswordRejected, err)
+		}
+		return c, nil
 	}
 	if err := c.Authenticate(newXOAUTH2Client(s.cred.Account, s.cred.AccessToken)); err != nil {
 		if fallbackErr := c.Authenticate(sasl.NewOAuthBearerClient(&sasl.OAuthBearerOptions{

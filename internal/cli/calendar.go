@@ -451,11 +451,7 @@ func parseTimeValue(value string) (time.Time, error) {
 }
 
 func calendarService(ctx context.Context) (*calendar.Service, error) {
-	store, err := selectStoreFor(calendarTelemostProfile)
-	if err != nil {
-		return nil, err
-	}
-	cred, err := store.Load(ctx)
+	cred, err := loadCredential(ctx, calendarAppPasswordProfile, calendarTelemostProfile)
 	if err != nil {
 		if errors.Is(err, tokenstore.ErrNoCredential) {
 			return nil, calendar.ErrReauthRequired

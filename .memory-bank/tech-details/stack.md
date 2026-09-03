@@ -19,8 +19,10 @@ Decided 2026-06-20: documented OAuth, **not** token interception / private-endpo
 | OAuth library | `golang.org/x/oauth2` — native PKCE (`GenerateVerifier`/`S256ChallengeOption`/`VerifierOption`) + `DeviceAuth`; hand-set `Endpoint{authorize,token}` | high | pkg.go.dev/golang.org/x/oauth2 |
 | Token storage | OS keychain (`go-keyring`) only — never repo/logs (§12) | high | — |
 | Token lifetime | ~12-month access token (personal account); refresh returns new refresh_token | high (personal only) | …/tokens/refresh-client |
-| Mail | OAuth bearer via IMAP/SMTP (`mail:imap_full`, `mail:smtp`), no app password | high | live verification + Yandex OAuth app UI |
+| Mail | OAuth bearer via IMAP/SMTP (`mail:imap_full`, `mail:smtp`) | high | live verification + Yandex OAuth app UI |
 | Calendar | CalDAV with `Authorization: OAuth <token>` and `calendar:all`; `Bearer` fails | high | live verification + Yandex OAuth app UI |
+| Mail + Calendar alternative | app password (`id.yandex.ru/security/app-passwords`): IMAP/SMTP `PLAIN`, CalDAV `Basic`; own profiles, preferred over OAuth (D-017) | medium — build/unit-verified, live pending OQ-023 | Yandex app-password docs |
+| Telemost / Forms / Disk | OAuth only — REST APIs do not accept app passwords | high | endpoint shape (`cloud-api.yandex.net`, `api.forms.yandex.net`) |
 | Telemost | `POST https://cloud-api.yandex.net/v1/telemost-api/conferences` with `telemost-api:conferences.create` | high | live verification + Yandex OAuth app UI |
 
 **Resolved dep versions** (`go mod tidy`, latest-compatible as of 2026-06-20; pinning revisitable):
@@ -32,6 +34,7 @@ Decided 2026-06-20: documented OAuth, **not** token interception / private-endpo
 - `github.com/emersion/go-message` v0.18.2
 - `github.com/emersion/go-sasl` v0.0.0-20241020182733-b788ff22d5a6
 - `github.com/modelcontextprotocol/go-sdk` v1.6.1
+- `golang.org/x/term` v0.45.0 (hidden app-password prompt)
 
 **Live-verified 2026-06-20** (D-004): `yx360 login` round-trips against a real Yandex 360 account. OAuth host is **`oauth.yandex.ru`** — `.com` does not show RU accounts. PKCE code-exchange works with no secret.
 

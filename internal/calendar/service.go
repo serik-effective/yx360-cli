@@ -39,6 +39,13 @@ func NewService(cfg config.Calendar, cred *auth.Credential) *Service {
 	return &Service{cfg: cfg, cred: cred, client: netutil.IPv4Client()}
 }
 
+// Verify resolves the CalDAV principal so a login flow can reject bad
+// credentials before storing them.
+func (s *Service) Verify(ctx context.Context) error {
+	_, err := s.primaryCalendarURL(ctx)
+	return err
+}
+
 func (s *Service) List(ctx context.Context, q Query) ([]Event, error) {
 	calendarURL, err := s.primaryCalendarURL(ctx)
 	if err != nil {
@@ -249,14 +256,18 @@ func (s *Service) getEvent(ctx context.Context, href string) (*Event, error) {
 }
 
 func (s *Service) request(ctx context.Context, method, endpoint, depth, contentType string, body io.Reader, ifMatch string) (*http.Response, error) {
-	if s.cred == nil || !s.cred.Valid() || !s.cred.HasScopes(s.cfg.Scope) {
+	if !s.cred.UsableFor(s.cfg.Scope) {
 		return nil, ErrReauthRequired
 	}
 	req, err := http.NewRequestWithContext(ctx, method, endpoint, body)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", "OAuth "+s.cred.AccessToken)
+	if s.cred.IsAppPassword() {
+		req.SetBasicAuth(s.cred.Account, s.cred.AppPassword)
+	} else {
+		req.Header.Set("Authorization", "OAuth "+s.cred.AccessToken)
+	}
 	if depth != "" {
 		req.Header.Set("Depth", depth)
 	}

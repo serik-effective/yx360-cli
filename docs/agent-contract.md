@@ -15,6 +15,8 @@ This document defines the stable, agent-facing usage contract for `yx360`. Agent
 - `YX360_FORMS_CLIENT_ID` and `YX360_FORMS_ORG_ID` must be set for `yx360 login --forms` and all `forms` commands. The Forms API is available only to Yandex 360 for Business organizations. The org id is sent as `X-Org-Id` when numeric, or `X-Cloud-Org-Id` when non-numeric (Yandex Cloud org). There is no auto-discovery; an invalid org id returns an `organization required` / `user not in organization` API error.
 - `forms` commands require a stored `forms` profile credential containing `forms:read` and `forms:write`; obtain it with `yx360 login --forms`.
 
+Mail and Calendar accept a Yandex app password as an alternative to OAuth: `yx360 login --app-password --mail --account user@example.com` (IMAP/SMTP) and `yx360 login --app-password --calendar --account user@example.com` (CalDAV). Yandex issues one password per service, so the two logins are separate. The password is never a flag; supply it in `YX360_APP_PASSWORD` or on stdin. App passwords are stored in the `mail-app-password` and `calendar-app-password` profiles and take precedence over the OAuth credential of the same surface. Telemost, Forms, and Disk are REST APIs and accept OAuth tokens only.
+
 Credentials are stored in the OS keychain by default. Agents must not read the keychain blob directly; use CLI commands.
 
 Mail, Calendar/Telemost, and Forms use different Yandex OAuth apps. Do not request scopes from more than one of these groups in a single `login`; the CLI rejects the combination before OAuth because Yandex rejects mixed scope sets.
@@ -32,6 +34,8 @@ Use environment variables for headless/CI/agent deployment; command-line flags o
 
 | Variable | Required for | Purpose |
 |---|---|---|
+| `YX360_APP_PASSWORD` | `login --app-password` | App password; alternative to reading it from stdin |
+| `YX360_ACCOUNT` | `login --app-password` | Full account address when `--account` is omitted |
 | `YX360_CLIENT_ID` | `login`, Mail | OAuth client id of the Mail/default app |
 | `YX360_CALENDAR_CLIENT_ID` | `login --calendar`/`--telemost` | OAuth client id of the Calendar+Telemost app |
 | `YX360_FORMS_CLIENT_ID` | `login --forms`, `forms *` | OAuth client id of the Forms app |
@@ -130,6 +134,10 @@ Known actionable errors:
 - `mail: stored credential is missing, expired, or does not include mail:imap_full; run yx360 login --mail`
 - `mail: stored credential is missing, expired, or does not include mail:smtp; run yx360 login --mail --mail-send`
 - `mail: IMAP OAuth authentication failed; enable mail-client access and app passwords/OAuth tokens in Yandex 360 Mail settings, then run yx360 login --mail`
+- `mail: IMAP app-password authentication failed; check the account address and that the password was created for Mail at https://id.yandex.ru/security/app-passwords`
+- `auth: app-password login needs the full account address, e.g. user@example.com`
+- `auth: app password is empty; create one at https://id.yandex.ru/security/app-passwords`
+- `--app-password covers Mail (IMAP/SMTP) and Calendar (CalDAV) only; Telemost, Forms, and Disk are REST APIs that accept OAuth tokens only, so use yx360 login for those`
 - `calendar: stored credential is missing, expired, or does not include calendar:all; run yx360 login --calendar`
 - `telemost: stored credential is missing, expired, or does not include telemost-api:conferences.create; run yx360 login --telemost`
 - `mail, calendar/telemost, and forms scopes use different Yandex OAuth apps; run separate login commands`
@@ -139,7 +147,7 @@ Known actionable errors:
 - `forms: no Forms org id: set YX360_FORMS_ORG_ID`
 - `OS keychain unavailable (...): on headless/CI hosts re-run with --insecure-file-store`
 
-Expired tokens are handled by re-running `yx360 login`; refresh is intentionally not implemented.
+Expired tokens are handled by re-running `yx360 login`; refresh is intentionally not implemented. App passwords do not expire; revoke them at `https://id.yandex.ru/security/app-passwords` and clear the local copy with `yx360 logout --app-password`.
 
 ## Exit Codes And Machine Output
 
